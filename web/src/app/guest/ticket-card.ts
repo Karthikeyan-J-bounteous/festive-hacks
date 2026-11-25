@@ -33,7 +33,7 @@ import { etaText } from '../shared/motion';
             } @else { In line }
           }
           @case ('away') { <strong>Away</strong> · your place is held for 20 min }
-          @case ('called') { <strong class="text-accent">Your turn, go now!</strong> }
+          @case ('called') { <strong class="text-primary">Your turn, go now!</strong> }
           @case ('serving') { <strong>Being served</strong> }
         }
       </p>
@@ -51,7 +51,7 @@ import { etaText } from '../shared/motion';
             <button class="flex-1 rounded-lg bg-primary px-2 py-2 text-sm font-bold text-on-primary"
                     [disabled]="busy()" (click)="act.emit('back')">I'm back</button>
           }
-          <button class="rounded-lg px-3 py-2 text-sm font-medium text-accent underline"
+          <button class="rounded-lg px-3 py-2 text-sm font-medium text-primary underline"
                   [disabled]="busy()" (click)="act.emit('cancel')">Cancel</button>
         </div>
       }

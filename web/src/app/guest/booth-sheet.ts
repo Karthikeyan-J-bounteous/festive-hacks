@@ -62,7 +62,7 @@ const WAIT_DOT = { green: 'bg-wait-green', amber: 'bg-wait-amber', red: 'bg-wait
         }
 
         @if (blocker(); as why) {
-          <p class="mt-5 text-sm font-medium text-accent">{{ why }}</p>
+          <p class="mt-5 text-sm font-medium text-primary">{{ why }}</p>
         }
         <button
           class="mt-5 w-full rounded-xl bg-primary px-4 py-4 text-lg font-bold text-on-primary disabled:opacity-50"

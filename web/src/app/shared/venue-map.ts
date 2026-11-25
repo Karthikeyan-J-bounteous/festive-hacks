@@ -43,7 +43,7 @@ const H = 700;
             [attr.stroke-dasharray]="z.id === 'parking' ? '10 8' : null" />
           <text
             [attr.x]="z.x + 14" [attr.y]="z.y + (z.id === 'stage' ? 42 : 30)"
-            fill="var(--text)" fill-opacity="0.75" font-size="24" font-weight="600">{{ z.name }}</text>
+            fill="var(--text)" fill-opacity="0.75" font-size="20" font-weight="600">{{ z.name }}</text>
         </g>
       }
       @for (p of pins(); track p.id) {

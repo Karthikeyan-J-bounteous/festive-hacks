@@ -42,7 +42,7 @@ import { ThemeService } from './core/theme.service';
           <p class="text-xs opacity-80">Demo: the code is always 123456.</p>
         }
         @if (error()) {
-          <p class="text-sm font-medium text-accent" role="alert">{{ error() }}</p>
+          <p class="text-sm font-medium text-primary" role="alert">{{ error() }}</p>
         }
         <button
           type="submit" [disabled]="busy()"
