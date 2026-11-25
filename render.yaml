@@ -1,0 +1,32 @@
+# Render Blueprint: one web service serves the API, socket.io and the built Angular app.
+# The free plan's disk is ephemeral: the SQLite DB reseeds itself (demo data) on every restart.
+services:
+  - type: web
+    name: varisai
+    runtime: node
+    plan: free
+    # devDependencies (Angular CLI) are needed for the build even with NODE_ENV=production.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      # Venue location for the GPS check (the rotating venue code works anywhere).
+      - key: SEED_LAT
+        value: "13.0627"
+      - key: SEED_LNG
+        value: "77.4760"
+      # Sponsor keys: set in the Render dashboard (never committed). All optional.
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: FLAGSMITH_ENVIRONMENT_KEY
+        sync: false
+      - key: OPS_TOKEN
+        sync: false
+      - key: NUDGEBEE_WEBHOOK_URL
+        sync: false
