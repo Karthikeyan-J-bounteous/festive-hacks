@@ -110,9 +110,10 @@ TODO: screenshot
 **Flagsmith.** Live kill-switches the planner can flip mid-event without a redeploy: `family_passes` (VIP lane and pass claims), `feast_rounds`, `voice_alerts` and `presence_geofence` (code-only presence when indoor GPS is bad). The server refreshes every 15 s and pushes changes to every phone over the socket. A multivariate `eta_style` flag runs an **A/B test** per guest: "~15–20 min" vs "3 people ahead". Each join and each guest cancel is logged, and the admin Overview shows the cancel rate for each wording.
 TODO: screenshot
 
-**NudgeBee.** An ops autopilot for the planner, with a human approval step. A NudgeBee workflow polls `GET /api/ops/overview` every 2 minutes (or receives a webhook when a booth first passes 25 min). When a queue is too long it posts an AI summary ("Mehendi table: 38 min, 9 waiting") and asks the planner "Open a 2nd artist?". On approval it calls `POST /api/ops/booths/:id/artists`, and every waiting guest's ETA updates live.
+**NudgeBee.** An ops autopilot for the planner, with a human in the loop. The "Varisai queue autopilot" workflow runs every 2 minutes: an **HTTP** step calls `GET /api/ops/overview`. If any booth's wait is over 25 min, an **Approval** step asks the planner, for example "Mehendi table: 83 min, 4 waiting. Open one more artist?". On approve, a second **HTTP** step calls `POST /api/ops/booths/:id/artists`, and every waiting guest's ETA drops live. In testing, one approval took the Mehendi table from 2 to 3 artists and its wait from 83 to 55 min. Varisai can also push a booth to a NudgeBee webhook trigger the moment it first passes 25 min (`NUDGEBEE_WEBHOOK_URL`, deduped per booth per 15 min).
 Endpoints: `GET /api/ops/overview` and `POST /api/ops/booths/:id/artists` (`Authorization: Bearer $OPS_TOKEN`, 401 when unset).
-TODO: workflow canvas screenshot
+
+![NudgeBee workflow: schedule → HTTP overview → approval → HTTP add artist](docs/screenshots/nudgebee.png)
 
 ## Roadmap
 
