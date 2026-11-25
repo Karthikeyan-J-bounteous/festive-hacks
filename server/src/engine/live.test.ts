@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mkBooth, mkTicket } from './fixtures';
-import { Action, awayExpired, callNext, formatCode, learnSpeed, shouldAutoSkip, skip, transition } from './live';
+import { Action, almostDue, awayExpired, callNext, formatCode, learnSpeed, shouldAutoSkip, skip, transition } from './live';
 import { Booth, MINUTE, Ticket, TicketStatus } from './types';
 
 const NONE = new Set<number>();
@@ -68,6 +68,16 @@ describe('callNext', () => {
     ['only away guests', mkBooth(), [mkTicket({ status: 'away' })]],
   ])('returns null for %s', (_name, booth, ts) => {
     expect(callNext(booth, ts, NONE, 0)).toBeNull();
+  });
+});
+
+describe('almostDue', () => {
+  it('nudges the next artists + 1 free guests in serve order, skipping guests busy elsewhere', () => {
+    const ts = [1, 2, 3, 4, 5].map((id) => mkTicket({ id, seq: id, user_id: 100 + id }));
+    const busyAtFeast = new Set([101]);
+    expect(almostDue([mkTicket({ id: 9, status: 'serving' }), ...ts], mkBooth({ artists: 2 }), busyAtFeast)
+      .map((t) => t.id)).toEqual([2, 3, 4]);
+    expect(almostDue(ts, mkBooth({ artists: 1 }), new Set()).map((t) => t.id)).toEqual([1, 2]);
   });
 });
 

@@ -1,14 +1,12 @@
 // Ticker (SPEC-LITE §6): one setInterval, 10 s. `tick(now)` is exported for tests.
 import { tx } from './db/db';
-import { BoothRow, EventRow, TicketRow, activeTickets, all, applyPatch } from './db/queries';
+import { BoothRow, EventRow, TicketRow, activeTickets, all, applyPatch, busyUsersElsewhere } from './db/queries';
 import { isEnded, isLive } from './engine/booking';
-import { liveEta } from './engine/eta';
-import { awayExpired, shouldAutoSkip, skip } from './engine/live';
+import { almostDue, awayExpired, shouldAutoSkip, skip } from './engine/live';
 import { CODE_WINDOW_MS } from './engine/presence';
 import { emitBoothChanged, emitCodeRotate, emitEventStatus, emitTicket } from './socket';
 
 export const TICK_MS = 10_000;
-export const ALMOST_POSITION = 2;
 
 const liveState = new Map<number, boolean>(); // eventId → last known live
 const almostSent = new Set<number>();         // ticket ids already nudged
@@ -72,18 +70,15 @@ export function tick(now: number): TickResult {
 
   for (const [boothId, ticketIds] of changedBooths) emitBoothChanged(boothId, now, ticketIds);
 
-  // 4. Position ≤ 2 at a live booth → one "almost" nudge per ticket.
+  // 4. Next (artists + 1) free guests at a live booth → one "almost" nudge per ticket (engine almostDue).
   const liveBooths = all<BoothRow>(
     `SELECT b.*, e.wedding_id FROM booths b JOIN events e ON e.id = b.event_id WHERE b.mode = 'live'`);
   for (const booth of liveBooths) {
-    const tickets = activeTickets(booth.id);
-    for (const t of tickets.filter((x) => x.status === 'waiting' && !almostSent.has(x.id))) {
-      const eta = liveEta(t.id, tickets, booth);
-      if (eta && eta.position <= ALMOST_POSITION) {
-        almostSent.add(t.id);
-        result.almost.push(t.id);
-        emitTicket(t.id, now, { almost: true });
-      }
+    for (const t of almostDue(activeTickets(booth.id), booth, busyUsersElsewhere(booth.id))) {
+      if (almostSent.has(t.id)) continue;
+      almostSent.add(t.id);
+      result.almost.push(t.id);
+      emitTicket(t.id, now, { almost: true });
     }
   }
 

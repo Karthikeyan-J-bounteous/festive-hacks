@@ -24,6 +24,19 @@ export function orderWaiting(waiting: readonly Ticket[], regularsSinceVip: numbe
   return out;
 }
 
+/**
+ * Who gets the "almost your turn" nudge: the next (artists + 1) waiting guests in serve order who
+ * are free (not called/serving at another booth). A busy guest near the front doesn't block the
+ * nudge for the guest who will actually be called next; they are nudged once they're free.
+ * (Deviation from §6 "position ≤ 2": found by scripts/simulate.ts.)
+ */
+export function almostDue(boothTickets: readonly Ticket[], booth: Booth, busyUsers: ReadonlySet<number>): Ticket[] {
+  const waiting = boothTickets.filter((t) => t.status === 'waiting');
+  return orderWaiting(waiting, booth.regulars_since_vip)
+    .filter((t) => !busyUsers.has(t.user_id))
+    .slice(0, booth.artists + 1);
+}
+
 export interface CallResult {
   ticketId: number;
   /** true when the head of the line was skipped over because that guest is busy at another booth */

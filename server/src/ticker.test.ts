@@ -20,7 +20,7 @@ describe('ticker', () => {
     firstAlmost = tick(now).almost;
   });
 
-  it('sends "almost" once per ticket at position ≤ 2', () => {
+  it('sends "almost" once per ticket to the next free guests', () => {
     expect(firstAlmost.length).toBeGreaterThan(0);
     expect(tick(now).almost.filter((id) => firstAlmost.includes(id))).toEqual([]);
   });

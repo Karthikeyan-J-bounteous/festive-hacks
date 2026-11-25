@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w server\" \"npm run start -w web\"",
     "seed": "npm run seed -w server",
+    "simulate": "npm run simulate -w server",
     "test": "npm test -w server",
     "build": "npm run build -w web",
     "start": "npm run start -w server"
