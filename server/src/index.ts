@@ -14,6 +14,7 @@ import { authRouter } from './routes/auth';
 import { guestRouter } from './routes/guest';
 import { boothRouter } from './routes/booth';
 import { adminRouter } from './routes/admin';
+import { opsRouter } from './routes/ops';
 
 if (seedIfEmpty()) console.log('Seeded empty database.');
 
@@ -26,6 +27,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, weddings: n });
 });
 
+app.use('/api/ops', opsRouter); // NudgeBee: Bearer OPS_TOKEN, no session
 app.use('/api', authRouter);
 app.use('/api/guest', guestRouter);
 app.use('/api/booth', boothRouter);

@@ -5,6 +5,7 @@ import { isEnded, isLive } from './engine/booking';
 import { almostDue, awayExpired, shouldAutoSkip, skip } from './engine/live';
 import { CODE_WINDOW_MS } from './engine/presence';
 import { emitBoothChanged, emitCodeRotate, emitEventStatus, emitTicket } from './socket';
+import { pushQueueAlerts } from './sponsors/nudgebee';
 
 export const TICK_MS = 10_000;
 
@@ -81,6 +82,9 @@ export function tick(now: number): TickResult {
       emitTicket(t.id, now, { almost: true });
     }
   }
+
+  // 5. NudgeBee (§14.3): a booth that just crossed 25 min is pushed to the webhook (after the commit).
+  pushQueueAlerts(now);
 
   // Venue code rotates every 30 s; the ticker runs every 10 s, so emit on the window change.
   const window = Math.floor(now / CODE_WINDOW_MS);

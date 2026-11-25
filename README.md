@@ -111,7 +111,8 @@ TODO: screenshot
 TODO: screenshot
 
 **NudgeBee.** An ops autopilot for the planner, with a human approval step. A NudgeBee workflow polls `GET /api/ops/overview` every 2 minutes (or receives a webhook when a booth first passes 25 min). When a queue is too long it posts an AI summary ("Mehendi table: 38 min, 9 waiting") and asks the planner "Open a 2nd artist?". On approval it calls `POST /api/ops/booths/:id/artists`, and every waiting guest's ETA updates live.
-TODO: NudgeBee endpoints (in progress) and a workflow canvas screenshot
+Endpoints: `GET /api/ops/overview` and `POST /api/ops/booths/:id/artists` (`Authorization: Bearer $OPS_TOKEN`, 401 when unset).
+TODO: workflow canvas screenshot
 
 ## Roadmap
 
