@@ -9,6 +9,10 @@ export interface ServerEvents {
   'ticket:called': { ticket: Ticket };
   'event:status': { eventId: number; type: string; name: string; live: boolean };
   'code:rotate': { code: string; token: string; expiresAt: number };
+  /** Sarvam (§14.1): the "your turn" line in the guest's language, with base64 MP3 audio. */
+  'ticket:voice': { ticketId: number; text: string; audio: string | null };
+  /** Sarvam: a translated almost / next-round note. */
+  'ticket:note': { ticketId: number; text: string };
 }
 
 /** One shared socket.io connection; the session cookie authenticates it. */

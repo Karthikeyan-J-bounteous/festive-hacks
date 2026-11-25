@@ -1,10 +1,12 @@
 // Socket.io (SPEC-LITE §7): rooms `wedding:{id}`, `booth:{id}`, `user:{id}`.
-// Events: booth:update, ticket:update, ticket:called, event:status, code:rotate.
+// Events: booth:update, ticket:update, ticket:called, event:status, code:rotate,
+// plus Sarvam's ticket:voice {ticketId, text, audio} and ticket:note {ticketId, text}.
 // Every emit is a no-op until initSocket() runs, so routes and tests work without a server.
 import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { SESSION_COOKIE, authFromToken } from './auth';
-import { all, activeTickets, boothsForWedding, getBooth, getTicket } from './db/queries';
+import { all, activeTickets, boothsForWedding, getBooth, getTicket, one } from './db/queries';
+import { Lang, asLang, sarvamEnabled, translate, voiceLine } from './sponsors/sarvam';
 import { currentCode } from './engine/presence';
 import { boothState, boothView, ticketView } from './routes/views';
 
@@ -60,6 +62,10 @@ export function emitTicket(ticketId: number, now: number, extra: { almost?: bool
   const booth = t && getBooth(t.booth_id);
   if (!t || !booth) return;
   io.to(`user:${t.user_id}`).emit('ticket:update', { ticket: ticketView(t, booth, activeTickets(booth.id), now), ...extra });
+  if (extra.almost) {
+    translateNote(t.user_id, t.id, NOTE_ALMOST);
+    warmTurn(t.user_id, booth.name, t.code); // so the "your turn" audio is cached before the call
+  } else if (extra.nextRound) translateNote(t.user_id, t.id, NOTE_NEXT_ROUND);
 }
 
 export function emitCalled(ticketId: number, now: number): void {
@@ -68,6 +74,40 @@ export function emitCalled(ticketId: number, now: number): void {
   const booth = t && getBooth(t.booth_id);
   if (!t || !booth) return;
   io.to(`user:${t.user_id}`).emit('ticket:called', { ticket: ticketView(t, booth, activeTickets(booth.id), now) });
+  announceTurn(t.user_id, t.id, booth.name, t.code);
+}
+
+// ---- Sarvam (§14.1). Fire-and-forget after the commit; never blocks or fails the action. ----
+// The English notes match the web's built-in copy; only non-English guests get a ticket:note.
+const NOTE_ALMOST = 'Almost your turn, start walking over.';
+const NOTE_NEXT_ROUND = "You're in the next feast round.";
+
+function guestLang(userId: number): { name: string | null; lang: Lang } {
+  const u = one<{ name: string | null; lang: string }>(`SELECT name, lang FROM users WHERE id = ?`, userId);
+  return { name: u?.name ?? null, lang: asLang(u?.lang) };
+}
+
+function turnLine(userId: number, boothName: string, code: string): Promise<{ text: string; audio: string | null }> {
+  const { name, lang } = guestLang(userId);
+  return voiceLine(`${name ? `${name}, it` : 'It'}'s your turn at ${boothName}. Token ${code}.`, lang);
+}
+
+function announceTurn(userId: number, ticketId: number, boothName: string, code: string): void {
+  if (!sarvamEnabled()) return;
+  void turnLine(userId, boothName, code).then((v) => io?.to(`user:${userId}`).emit('ticket:voice', { ticketId, ...v }));
+}
+
+function warmTurn(userId: number, boothName: string, code: string): void {
+  if (sarvamEnabled()) void turnLine(userId, boothName, code);
+}
+
+function translateNote(userId: number, ticketId: number, english: string): void {
+  if (!sarvamEnabled()) return;
+  const { lang } = guestLang(userId);
+  if (lang === 'en-IN') return;
+  void translate(english, lang).then((text) => {
+    if (text !== english) io?.to(`user:${userId}`).emit('ticket:note', { ticketId, text });
+  });
 }
 
 /**

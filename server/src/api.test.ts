@@ -84,6 +84,17 @@ describe('feast rounds', () => {
   });
 });
 
+describe('guest language (Sarvam §14.1)', () => {
+  it('saves a supported language, rejects others, and bootstrap reports it with voice off when keyless', async () => {
+    const guest = await login('9000000109');
+    expect((await guest.get('/api/guest/bootstrap').expect(200)).body).toMatchObject({ lang: 'en-IN', voice: false });
+    await guest.put('/api/guest/lang').send({ lang: 'ta-IN' }).expect(200);
+    expect((await guest.get('/api/guest/bootstrap')).body.lang).toBe('ta-IN');
+    const bad = await guest.put('/api/guest/lang').send({ lang: 'fr-FR' });
+    expect(bad.status).toBe(400);
+  });
+});
+
 describe('guest routes', () => {
   it('guest without presence gets 403 on join, then joins after the venue code', async () => {
     const guest = await login('9000000999'); // new phone → guest membership, no presence

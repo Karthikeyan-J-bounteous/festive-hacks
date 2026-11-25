@@ -7,6 +7,7 @@ import { Socket } from '../core/socket';
 import { ThemeService } from '../core/theme.service';
 import { themeFor } from '../core/themes';
 import { Toast } from '../core/toast';
+import { VOICE_LANGS, Voice } from '../core/voice';
 import { session } from '../shared/motion';
 import { VenueMap, WAIT_BG, boothPin } from '../shared/venue-map';
 import { BoothSheet } from './booth-sheet';
@@ -74,6 +75,24 @@ const ENDED_TEXT: Record<string, string> = {
             </form>
           </div>
         </section>
+      }
+
+      <!-- Sarvam (§14.1): alert language + one-tap audio unlock. Hidden when the server has no key. -->
+      @if (boot()?.voice) {
+        <div class="card flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+          <label class="flex items-center gap-2 text-sm font-semibold" for="alert-lang">
+            <span aria-hidden="true">🔊</span> Alerts in</label>
+          <select id="alert-lang" class="input input-sm w-auto font-semibold" [ngModel]="boot()!.lang"
+                  (ngModelChange)="setLang($event)" [disabled]="langBusy()">
+            @for (l of langs; track l.code) { <option [value]="l.code">{{ l.label }}</option> }
+          </select>
+          @if (voice.unlocked()) {
+            <span class="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold">
+              <span class="h-2 w-2 rounded-full bg-wait-green" aria-hidden="true"></span>Voice on</span>
+          } @else {
+            <button class="btn btn-primary btn-sm ml-auto" (click)="voice.unlock()">Enable voice alerts</button>
+          }
+        </div>
       }
 
       @if (events().length > 1) {
@@ -151,7 +170,7 @@ const ENDED_TEXT: Record<string, string> = {
     }
 
     @if (takeover(); as t) {
-      <app-takeover [ticket]="t" (dismiss)="takeover.set(null)" />
+      <app-takeover [ticket]="t" [voice]="voices()[t.id] ?? null" (dismiss)="takeover.set(null)" />
     }
   `,
 })
@@ -166,6 +185,11 @@ export class GuestPage implements OnInit {
 
   protected readonly boot = signal<Bootstrap | null>(null);
   protected readonly loadError = signal('');
+  protected readonly voice = inject(Voice);
+  protected readonly langs = VOICE_LANGS;
+  protected readonly langBusy = signal(false);
+  /** Sarvam "your turn" lines by ticket id. */
+  protected readonly voices = signal<Record<number, { text: string; audio: string | null }>>({});
   protected readonly waitBg = WAIT_BG;
   protected readonly splash = signal(session.get('varisai.splash') !== '1');
   protected readonly eventId = signal<number | null>(null);
@@ -195,6 +219,10 @@ export class GuestPage implements OnInit {
       this.socket.on('booth:update', ({ booth }) => this.patchBooth(booth)),
       this.socket.on('ticket:update', (p) => this.onTicket(p.ticket, p)),
       this.socket.on('ticket:called', ({ ticket }) => this.onTicket(ticket, {})),
+      this.socket.on('ticket:voice', (v) => {
+        this.voices.update((m) => ({ ...m, [v.ticketId]: { text: v.text, audio: v.audio } })); // takeover plays it
+      }),
+      this.socket.on('ticket:note', ({ ticketId, text }) => this.note(ticketId, text)),
       this.socket.on('event:status', (e) => {
         this.toast.show(e.live ? `${e.name} is live now!` : `${e.name} has ended`);
         void this.load();
@@ -247,6 +275,20 @@ export class GuestPage implements OnInit {
   }
   protected boothOf(t: Ticket): Booth | undefined {
     return this.boot()?.booths.find((b) => b.id === t.boothId);
+  }
+
+  protected async setLang(lang: string): Promise<void> {
+    const before = this.boot()?.lang;
+    this.boot.update((b) => b && { ...b, lang });
+    this.langBusy.set(true);
+    try {
+      await this.api.put('/api/guest/lang', { lang });
+    } catch (e) {
+      this.boot.update((b) => b && before ? { ...b, lang: before } : b);
+      this.toast.error(errorText(e));
+    } finally {
+      this.langBusy.set(false);
+    }
   }
 
   // ---- presence ----

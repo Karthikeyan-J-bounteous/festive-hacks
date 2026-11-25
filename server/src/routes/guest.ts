@@ -14,6 +14,7 @@ import { formatCode, transition } from '../engine/live';
 import { checkClaim, isFamilyFor } from '../engine/passes';
 import { boothView, ticketView } from './views';
 import { emitBoothChanged } from '../socket';
+import { LANGS, asLang, sarvamEnabled } from '../sponsors/sarvam';
 
 const JOIN_MESSAGES: Record<JoinError, string> = {
   event_not_live: 'This event has not started yet',
@@ -36,6 +37,7 @@ const JoinBody = z.object({
   partySize: z.number().int().default(1),
 });
 const ClaimBody = z.object({ token: z.string().trim().min(8).max(64) });
+const LangBody = z.object({ lang: z.enum(LANGS) });
 
 export const guestRouter = Router();
 guestRouter.use(requireRole(ACTIONS.joinQueue));
@@ -78,7 +80,17 @@ guestRouter.get('/bootstrap', (req, res) => {
     tickets: myTicketViews(userId, weddingId, now),
     pass: myPass(userId, weddingId),
     presence: { valid: !!presence && presence.valid_until > now, validUntil: presence?.valid_until ?? null },
+    // Sarvam (§14.1): the guest's language, and whether voice alerts are available at all.
+    lang: asLang(one<{ lang: string }>(`SELECT lang FROM users WHERE id = ?`, userId)?.lang),
+    voice: sarvamEnabled(),
   });
+});
+
+guestRouter.put('/lang', (req, res) => {
+  const { userId } = req.auth!;
+  const { lang } = parse(LangBody, req.body);
+  tx(() => run(`UPDATE users SET lang = ? WHERE id = ?`, lang, userId));
+  res.json({ lang });
 });
 
 guestRouter.post('/presence', (req, res) => {

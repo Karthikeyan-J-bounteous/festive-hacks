@@ -91,6 +91,9 @@ export interface Bootstrap {
   tickets: Ticket[];
   pass: MyPass | null;
   presence: { valid: boolean; validUntil: number | null };
+  /** Sarvam (§14.1): the guest's language, and whether voice alerts are available. */
+  lang: string;
+  voice: boolean;
 }
 
 export interface PublicWedding {
