@@ -2,7 +2,7 @@ import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angula
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Api, errorText } from '../core/api';
-import { Bootstrap, Booth, Ticket } from '../core/models';
+import { Bootstrap, Booth, Flags, Ticket } from '../core/models';
 import { Socket } from '../core/socket';
 import { ThemeService } from '../core/theme.service';
 import { themeFor } from '../core/themes';
@@ -15,6 +15,9 @@ import { Splash } from './splash';
 import { Takeover } from './takeover';
 import { TicketCard } from './ticket-card';
 
+const DEFAULT_FLAGS: Flags = {
+  family_passes: true, feast_rounds: true, voice_alerts: true, presence_geofence: true, eta_style: 'minutes',
+};
 const ENDED = new Set(['done', 'no_show', 'cancelled']);
 const ENDED_TEXT: Record<string, string> = {
   done: 'All done, enjoy!',
@@ -39,7 +42,7 @@ const ENDED_TEXT: Record<string, string> = {
           <p class="eyebrow">Varisai</p>
           <h1 class="font-display truncate text-3xl leading-tight text-primary">{{ boot()?.wedding?.couple_names ?? '…' }}</h1>
         </div>
-        @if (boot()?.pass; as pass) {
+        @if (flags().family_passes && boot()?.pass; as pass) {
           <span class="gold-badge shrink-0" [title]="pass.label">★ Family pass</span>
         }
       </header>
@@ -60,12 +63,14 @@ const ENDED_TEXT: Record<string, string> = {
             </div>
           </div>
           <div class="flex flex-col gap-3 p-4">
-            <button class="btn btn-primary w-full" [disabled]="presenceBusy()" (click)="useLocation()">
-              {{ presenceBusy() ? 'Checking…' : 'Allow location' }}
-            </button>
-            <div class="flex items-center gap-3 text-xs opacity-70" aria-hidden="true">
-              <span class="h-px flex-1 bg-line"></span>or<span class="h-px flex-1 bg-line"></span>
-            </div>
+            @if (flags().presence_geofence) {
+              <button class="btn btn-primary w-full" [disabled]="presenceBusy()" (click)="useLocation()">
+                {{ presenceBusy() ? 'Checking…' : 'Allow location' }}
+              </button>
+              <div class="flex items-center gap-3 text-xs opacity-70" aria-hidden="true">
+                <span class="h-px flex-1 bg-line"></span>or<span class="h-px flex-1 bg-line"></span>
+              </div>
+            }
             <form class="flex gap-2" (ngSubmit)="useCode()">
               <label class="sr-only" for="venue-code">4-digit code on the venue screen</label>
               <input id="venue-code" name="code" inputmode="numeric" maxlength="8" [(ngModel)]="code"
@@ -77,8 +82,8 @@ const ENDED_TEXT: Record<string, string> = {
         </section>
       }
 
-      <!-- Sarvam (§14.1): alert language + one-tap audio unlock. Hidden when the server has no key. -->
-      @if (boot()?.voice) {
+      <!-- Sarvam (§14.1): alert language + one-tap audio unlock. Hidden with no key or the voice_alerts flag off. -->
+      @if (boot()?.voice && flags().voice_alerts) {
         <div class="card flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
           <label class="flex items-center gap-2 text-sm font-semibold" for="alert-lang">
             <span aria-hidden="true">🔊</span> Alerts in</label>
@@ -127,7 +132,7 @@ const ENDED_TEXT: Record<string, string> = {
           <h2 id="tray-title" class="eyebrow mb-2">Your queues · {{ myTickets().length }}/3</h2>
           <div class="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3">
             @for (t of myTickets(); track t.id) {
-              <app-ticket-card class="w-68 shrink-0 snap-start" [ticket]="t" [isBatch]="boothOf(t)?.mode === 'batch'"
+              <app-ticket-card class="w-68 shrink-0 snap-start" [ticket]="t" [isBatch]="boothOf(t)?.mode === 'batch'" [etaStyle]="flags().eta_style"
                                [note]="notes()[t.id] ?? ''" [busy]="busyId() === t.id" (act)="act(t, $event)" />
             }
           </div>
@@ -165,7 +170,7 @@ const ENDED_TEXT: Record<string, string> = {
 
     @if (selected(); as b) {
       <app-booth-sheet [booth]="b" [mine]="ticketAt(b.id)" [presenceValid]="!!boot()?.presence?.valid"
-                       [ticketsInEvent]="ticketCount(b.eventId)" [busy]="joining()"
+                       [ticketsInEvent]="ticketCount(b.eventId)" [busy]="joining()" [feastRounds]="flags().feast_rounds"
                        (join)="join(b, $event)" (close)="selectedId.set(null)" />
     }
 
@@ -201,6 +206,8 @@ export class GuestPage implements OnInit {
   protected readonly busyId = signal<number | null>(null);
   protected code = '';
 
+  /** Flagsmith (§14.2): from bootstrap, then live via flags:update. */
+  protected readonly flags = computed(() => this.boot()?.flags ?? DEFAULT_FLAGS);
   protected readonly events = computed(() => this.boot()?.events ?? []);
   protected readonly currentEvent = computed(() => {
     const evs = this.events();
@@ -223,6 +230,7 @@ export class GuestPage implements OnInit {
         this.voices.update((m) => ({ ...m, [v.ticketId]: { text: v.text, audio: v.audio } })); // takeover plays it
       }),
       this.socket.on('ticket:note', ({ ticketId, text }) => this.note(ticketId, text)),
+      this.socket.on('flags:update', ({ flags }) => this.boot.update((b) => b && { ...b, flags })),
       this.socket.on('event:status', (e) => {
         this.toast.show(e.live ? `${e.name} is live now!` : `${e.name} has ended`);
         void this.load();

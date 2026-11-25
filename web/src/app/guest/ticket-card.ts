@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { Ticket } from '../core/models';
-import { etaText } from '../shared/motion';
+import { aheadText, etaText } from '../shared/motion';
 
 /** Code, position, ETA range, I'm away / Cancel, gold family badge (SPEC-LITE §8). */
 @Component({
@@ -31,9 +31,9 @@ import { etaText } from '../shared/motion';
             @case ('waiting') {
               @if (ticket().eta; as eta) {
                 @if (ticket().roundId === null && isBatch()) {
-                  <strong class="text-base">Round {{ eta.position }}</strong> · {{ etaText(eta) }}
+                  <strong class="text-base">Round {{ eta.position }}</strong> · {{ wait(eta) }}
                 } @else {
-                  <strong class="text-base">#{{ eta.position }}</strong> in line · {{ etaText(eta) }}
+                  <strong class="text-base">#{{ eta.position }}</strong> in line · {{ wait(eta) }}
                 }
               } @else { In line }
             }
@@ -66,7 +66,11 @@ export class TicketCard {
   readonly isBatch = input(false);
   readonly note = input('');
   readonly busy = input(false);
+  /** Flagsmith A/B: "~15–20 min" vs "3 people ahead". */
+  readonly etaStyle = input<'minutes' | 'people'>('minutes');
   readonly act = output<'away' | 'back' | 'cancel'>();
 
-  protected readonly etaText = etaText;
+  protected wait(eta: { ahead: number; low: number; high: number }): string {
+    return this.etaStyle() === 'people' ? aheadText(eta.ahead) : etaText(eta);
+  }
 }

@@ -1,12 +1,14 @@
 // Socket.io (SPEC-LITE §7): rooms `wedding:{id}`, `booth:{id}`, `user:{id}`.
 // Events: booth:update, ticket:update, ticket:called, event:status, code:rotate,
-// plus Sarvam's ticket:voice {ticketId, text, audio} and ticket:note {ticketId, text}.
+// plus Sarvam's ticket:voice {ticketId, text, audio} and ticket:note {ticketId, text},
+// and Flagsmith's flags:update {flags} (per user, since eta_style is per identity).
 // Every emit is a no-op until initSocket() runs, so routes and tests work without a server.
 import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { SESSION_COOKIE, authFromToken } from './auth';
 import { all, activeTickets, boothsForWedding, getBooth, getTicket, one } from './db/queries';
 import { Lang, asLang, sarvamEnabled, translate, voiceLine } from './sponsors/sarvam';
+import { FlagsChange, flag, flagsOf } from './sponsors/flags';
 import { currentCode } from './engine/presence';
 import { boothState, boothView, ticketView } from './routes/views';
 
@@ -92,13 +94,15 @@ function turnLine(userId: number, boothName: string, code: string): Promise<{ te
   return voiceLine(`${name ? `${name}, it` : 'It'}'s your turn at ${boothName}. Token ${code}.`, lang);
 }
 
+const voiceOn = (): boolean => sarvamEnabled() && flag('voice_alerts');
+
 function announceTurn(userId: number, ticketId: number, boothName: string, code: string): void {
-  if (!sarvamEnabled()) return;
+  if (!voiceOn()) return;
   void turnLine(userId, boothName, code).then((v) => io?.to(`user:${userId}`).emit('ticket:voice', { ticketId, ...v }));
 }
 
 function warmTurn(userId: number, boothName: string, code: string): void {
-  if (sarvamEnabled()) void turnLine(userId, boothName, code);
+  if (voiceOn()) void turnLine(userId, boothName, code);
 }
 
 function translateNote(userId: number, ticketId: number, english: string): void {
@@ -141,4 +145,27 @@ export function emitCodeRotate(weddingId: number, secret: string, now: number): 
   if (admins.length === 0) return;
   const { code, token, expiresAt } = currentCode(secret, now);
   io.to(admins.map((a) => `user:${a.user_id}`)).emit('code:rotate', { code, token, expiresAt });
+}
+
+// ---- Flagsmith (§14.2) ----
+
+/** Users with an open socket (for refreshing their A/B variant). */
+export function connectedUserIds(): number[] {
+  if (!io) return [];
+  return [...new Set([...io.sockets.sockets.values()].map((s) => s.data.auth?.userId as number).filter(Boolean))];
+}
+
+/** A flag flipped: every connected user gets their flags; a VIP-lane flip also reorders every live line. */
+export function emitFlags(change: FlagsChange, now: number): void {
+  if (!io) return;
+  const kill = (Object.keys(change.after) as (keyof typeof change.after)[]).some(
+    (k) => k !== 'eta_style' && change.after[k] !== change.before[k]);
+  const envStyle = change.after.eta_style !== change.before.eta_style;
+  const targets = kill || envStyle ? connectedUserIds() : change.users;
+  for (const id of targets) io.to(`user:${id}`).emit('flags:update', { flags: flagsOf(id) });
+  if (change.after.family_passes !== change.before.family_passes) {
+    const booths = all<{ booth_id: number }>(
+      `SELECT DISTINCT booth_id FROM tickets WHERE status IN ('waiting','away','called','serving')`);
+    for (const { booth_id } of booths) emitBoothChanged(booth_id, now);
+  }
 }

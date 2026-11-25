@@ -1,9 +1,10 @@
 // HTTP tests (SPEC-LITE §10 supertest cases). Runs against a fresh seeded in-memory DB.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { app } from './index';
 import { db } from './db/db';
 import { currentCode } from './engine/presence';
+import { DEFAULT_FLAGS, setFlagsForTest } from './sponsors/flags';
 
 const OTP = '123456';
 
@@ -177,6 +178,44 @@ describe('guest routes', () => {
     expect(res.body.booths.length).toBeGreaterThan(0);
     expect(res.body.tickets.some((t: { isVip: boolean }) => t.isVip)).toBe(true);
     expect(res.body.pass.side).toBe('bride');
+  });
+});
+
+describe('Flagsmith flags (§14.2)', () => {
+  afterEach(() => setFlagsForTest());
+
+  it('keyless: bootstrap carries the defaults and overview has no A/B card', async () => {
+    const res = await (await login('9000000100')).get('/api/guest/bootstrap').expect(200);
+    expect(res.body.flags).toEqual(DEFAULT_FLAGS);
+    const ov = await (await login('9000000001')).get('/api/admin/overview').expect(200);
+    expect(ov.body.abTest).toBeNull();
+  });
+
+  it('logs the eta_style a guest joined with, and marks a guest cancel', async () => {
+    const guest = await login('9000000998'); // fresh guest
+    const secret = (db.prepare('SELECT qr_secret FROM weddings').get() as { qr_secret: string }).qr_secret;
+    await guest.post('/api/guest/presence').send({ code: currentCode(secret, Date.now()).code }).expect(200);
+    const { id } = (await guest.post('/api/guest/tickets')
+      .send({ boothId: boothId('Chaat counter'), option: 'Pani puri' }).expect(201)).body.ticket;
+    const ab = () => db.prepare('SELECT variant, cancelled FROM ab_eta WHERE ticket_id = ?').get(id);
+    expect({ ...ab() as object }).toEqual({ variant: 'minutes', cancelled: 0 });
+    await guest.post(`/api/guest/tickets/${id}/cancel`).expect(200);
+    expect({ ...ab() as object }).toEqual({ variant: 'minutes', cancelled: 1 });
+  });
+
+  it('kill-switches: no VIP lane or claims, no feast joins, code-only presence', async () => {
+    setFlagsForTest({ family_passes: false, feast_rounds: false, presence_geofence: false });
+    const vip = await login('9000000100'); // seeded bride pass with VIP tickets
+    const boot = (await vip.get('/api/guest/bootstrap').expect(200)).body;
+    expect(boot.flags).toMatchObject({ family_passes: false, feast_rounds: false, presence_geofence: false });
+    expect(boot.tickets.some((t: { isVip: boolean }) => t.isVip)).toBe(false);
+
+    const claim = await vip.post('/api/guest/passes/claim').send({ token: 'any-token-123' });
+    expect([claim.status, claim.body.error]).toEqual([403, 'feature_off']);
+    const feast = await vip.post('/api/guest/tickets').send({ boothId: boothId('Dining hall'), option: 'x' });
+    expect([feast.status, feast.body.error]).toEqual([403, 'feature_off']);
+    const geo = await vip.post('/api/guest/presence').send({ lat: 13, lng: 80, accuracy: 10 });
+    expect([geo.status, geo.body.error]).toEqual([403, 'geofence_off']);
   });
 });
 

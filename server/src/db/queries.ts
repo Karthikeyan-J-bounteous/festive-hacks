@@ -4,6 +4,7 @@ import { db } from './db';
 import type { Booth, Round, Ticket, TicketPatch } from '../engine/types';
 import { isFamilyFor, type Pass, type PassEvent } from '../engine/passes';
 import type { EventTiming } from '../engine/booking';
+import { flag } from '../sponsors/flags';
 
 export function one<T>(sql: string, ...params: SQLInputValue[]): T | undefined {
   return db.prepare(sql).get(...params) as T | undefined;
@@ -55,8 +56,14 @@ export const getEvent = (id: number) => one<EventRow>(`SELECT * FROM events WHER
 export const getTicket = (id: number) => one<TicketRow>(`SELECT * FROM tickets WHERE id = ?`, id);
 
 /** Every waiting/away/called/serving ticket at a booth. */
-export const activeTickets = (boothId: number) =>
-  all<TicketRow>(`SELECT * FROM tickets WHERE booth_id = ? AND status IN ${ACTIVE_SQL} ORDER BY seq`, boothId);
+/**
+ * Open tickets at a booth in seq order. With the Flagsmith `family_passes` flag off the VIP lane is off:
+ * every row reads as regular, so call order, ETAs and the handler queue all ignore passes.
+ */
+export function activeTickets(boothId: number): TicketRow[] {
+  const rows = all<TicketRow>(`SELECT * FROM tickets WHERE booth_id = ? AND status IN ${ACTIVE_SQL} ORDER BY seq`, boothId);
+  return flag('family_passes') ? rows : rows.map((t) => ({ ...t, is_vip: 0 }));
+}
 
 /** Users with a called/serving ticket at some other booth (for conflict deferral). */
 export function busyUsersElsewhere(boothId: number): Set<number> {

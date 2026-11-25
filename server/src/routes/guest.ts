@@ -15,6 +15,7 @@ import { checkClaim, isFamilyFor } from '../engine/passes';
 import { boothView, ticketView } from './views';
 import { emitBoothChanged } from '../socket';
 import { LANGS, asLang, sarvamEnabled } from '../sponsors/sarvam';
+import { Flags, etaStyleOf, flag, flagsFor } from '../sponsors/flags';
 
 const JOIN_MESSAGES: Record<JoinError, string> = {
   event_not_live: 'This event has not started yet',
@@ -62,8 +63,13 @@ function myPass(userId: number, weddingId: number) {
   return { id: p.id, side: p.side, label: p.label, eventIds };
 }
 
-guestRouter.get('/bootstrap', (req, res) => {
+guestRouter.get('/bootstrap', (req, res, next) => {
   const { userId, weddingId } = req.auth!;
+  // Flagsmith (§14.2): resolve this guest's flags first (cached, ≤3 s cold, never throws).
+  flagsFor(userId).then((flags) => res.json(bootstrap(userId, weddingId, flags))).catch(next);
+});
+
+function bootstrap(userId: number, weddingId: number, flags: Flags) {
   const now = Date.now();
   const wedding = one(`SELECT id, name, couple_names FROM weddings WHERE id = ?`, weddingId);
   const events = all<EventRow>(`SELECT * FROM events WHERE wedding_id = ? ORDER BY sort_order`, weddingId)
@@ -72,7 +78,7 @@ guestRouter.get('/bootstrap', (req, res) => {
   const presence = one<{ valid_until: number }>(
     `SELECT valid_until FROM presence WHERE user_id = ? AND wedding_id = ?`, userId, weddingId);
 
-  res.json({
+  return {
     wedding,
     // `theme` is the event type; the web theme.service maps it to CSS variables.
     events: events.map((e) => ({ id: e.id, type: e.type, theme: e.type, name: e.name, startsAt: e.starts_at, endsAt: e.ends_at })),
@@ -83,8 +89,10 @@ guestRouter.get('/bootstrap', (req, res) => {
     // Sarvam (§14.1): the guest's language, and whether voice alerts are available at all.
     lang: asLang(one<{ lang: string }>(`SELECT lang FROM users WHERE id = ?`, userId)?.lang),
     voice: sarvamEnabled(),
-  });
-});
+    // Flagsmith (§14.2): kill-switches + this guest's eta_style variant. Live changes arrive as flags:update.
+    flags,
+  };
+}
 
 guestRouter.put('/lang', (req, res) => {
   const { userId } = req.auth!;
@@ -100,6 +108,9 @@ guestRouter.post('/presence', (req, res) => {
   const w = one<{ venue_lat: number; venue_lng: number; radius_m: number; qr_secret: string }>(
     `SELECT venue_lat, venue_lng, radius_m, qr_secret FROM weddings WHERE id = ?`, weddingId)!;
 
+  if (!('code' in body) && !flag('presence_geofence')) {
+    throw new HttpError(403, 'geofence_off', 'Location check is off right now, use the venue code');
+  }
   if ('code' in body) {
     if (!verifyCode(w.qr_secret, body.code, now)) throw new HttpError(403, 'bad_code', 'That code has expired, try the one on screen now');
   } else {
@@ -127,6 +138,9 @@ guestRouter.post('/tickets', (req, res) => {
   const ticketId = tx(() => {
     const booth = getBooth(body.boothId);
     if (!booth || booth.wedding_id !== weddingId) throw new HttpError(404, 'not_found', 'Booth not found');
+    if (booth.mode === 'batch' && !flag('feast_rounds')) {
+      throw new HttpError(403, 'feature_off', 'Feast rounds are paused right now');
+    }
     const event = getEvent(booth.event_id)!;
     const option = boothOptions(booth).find((o) => o.label === body.option);
     const count = (sql: string, ...p: number[]) => one<{ n: number }>(sql, ...p)!.n;
@@ -150,12 +164,15 @@ guestRouter.post('/tickets', (req, res) => {
     const { passes, passEvents } = passesForUser(userId, weddingId);
     const seq = one<{ s: number }>(`SELECT COALESCE(MAX(seq), 0) + 1 AS s FROM tickets WHERE booth_id = ?`, booth.id)!.s;
     const n = count(`SELECT COUNT(*) AS n FROM tickets WHERE booth_id = ?`, booth.id) + 1;
-    return Number(run(
+    const id = Number(run(
       `INSERT INTO tickets (booth_id, event_id, user_id, code, option_label, base_minutes, party_size, is_vip, status, seq, joined_at)
        VALUES (?,?,?,?,?,?,?,?,'waiting',?,?)`,
       booth.id, event.id, userId, formatCode(booth.code_prefix, n), option!.label, option!.minutes, body.partySize,
       isFamilyFor(userId, event.id, passes, passEvents) ? 1 : 0, Math.ceil(seq), now,
     ).lastInsertRowid);
+    // A/B log: the ETA style this guest is seeing (cached variant; no network inside the tx).
+    run(`INSERT INTO ab_eta (ticket_id, variant) VALUES (?,?)`, id, etaStyleOf(userId));
+    return id;
   });
 
   res.status(201).json(view(ticketId, now));
@@ -171,6 +188,7 @@ guestRouter.post('/tickets/:id/:action(cancel|away|back)', (req, res) => {
     const t = getTicket(id);
     if (!t || t.user_id !== userId) throw new HttpError(404, 'not_found', 'Ticket not found');
     applyPatch(t.id, transition(t, action, now));
+    if (action === 'cancel') run(`UPDATE ab_eta SET cancelled = 1 WHERE ticket_id = ?`, t.id);
     return t.booth_id;
   });
   res.json(view(id, now));
@@ -180,6 +198,7 @@ guestRouter.post('/tickets/:id/:action(cancel|away|back)', (req, res) => {
 guestRouter.post('/passes/claim', (req, res) => {
   const { userId, weddingId } = req.auth!;
   const { token } = parse(ClaimBody, req.body);
+  if (!flag('family_passes')) throw new HttpError(403, 'feature_off', 'Family passes are turned off right now');
   const now = Date.now();
   const changed = tx(() => {
     const pass = one<{ id: number; side: 'bride' | 'groom'; claimed_by_user_id: number | null; revoked_at: number | null }>(

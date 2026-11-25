@@ -84,6 +84,15 @@ export interface AdminEvent extends WeddingEvent {
 
 export interface MyPass { id: number; side: Side; label: string; eventIds: number[] }
 
+/** Flagsmith (§14.2): kill-switches + this guest's eta_style A/B variant. */
+export interface Flags {
+  family_passes: boolean;
+  feast_rounds: boolean;
+  voice_alerts: boolean;
+  presence_geofence: boolean;
+  eta_style: 'minutes' | 'people';
+}
+
 export interface Bootstrap {
   wedding: { id: number; name: string; couple_names: string };
   events: WeddingEvent[];
@@ -94,6 +103,7 @@ export interface Bootstrap {
   /** Sarvam (§14.1): the guest's language, and whether voice alerts are available. */
   lang: string;
   voice: boolean;
+  flags: Flags;
 }
 
 export interface PublicWedding {

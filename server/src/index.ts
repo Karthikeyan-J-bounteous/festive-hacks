@@ -3,7 +3,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import fs from 'node:fs';
 import http from 'node:http';
-import { initSocket } from './socket';
+import { connectedUserIds, emitFlags, initSocket } from './socket';
+import { startFlags } from './sponsors/flags';
 import { startTicker } from './ticker';
 import path from 'node:path';
 import { db } from './db/db';
@@ -45,5 +46,6 @@ if (require.main === module) {
   const server = http.createServer(app);
   initSocket(server);
   startTicker();
+  startFlags(connectedUserIds, (change) => emitFlags(change, Date.now()));
   server.listen(config.port, () => console.log(`Varisai server on http://localhost:${config.port}`));
 }

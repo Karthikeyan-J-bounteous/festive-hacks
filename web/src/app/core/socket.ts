@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { io, Socket as IoSocket } from 'socket.io-client';
-import { Booth, BoothState, Ticket } from './models';
+import { Booth, BoothState, Flags, Ticket } from './models';
 
 /** Server → client events (SPEC-LITE §7). */
 export interface ServerEvents {
@@ -13,6 +13,8 @@ export interface ServerEvents {
   'ticket:voice': { ticketId: number; text: string; audio: string | null };
   /** Sarvam: a translated almost / next-round note. */
   'ticket:note': { ticketId: number; text: string };
+  /** Flagsmith: a flag flipped; this user's resolved flags. */
+  'flags:update': { flags: Flags };
 }
 
 /** One shared socket.io connection; the session cookie authenticates it. */

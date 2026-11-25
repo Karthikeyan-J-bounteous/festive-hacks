@@ -3,6 +3,7 @@ import { batchEta, liveEta, liveBoothWait, waitColour, Eta } from '../engine/eta
 import { orderWaiting } from '../engine/live';
 import { Ticket, isInProgress } from '../engine/types';
 import { BoothRow, TicketRow, activeTickets, boothOptions, seatingRound } from '../db/queries';
+import { flag } from '../sponsors/flags';
 
 export function ticketEta(t: TicketRow, booth: BoothRow, boothTickets: readonly TicketRow[], now: number): Eta | null {
   if (t.status !== 'waiting') return null;
@@ -21,7 +22,7 @@ export function ticketView(t: TicketRow, booth: BoothRow, boothTickets: readonly
     option: t.option_label,
     partySize: t.party_size,
     status: t.status,
-    isVip: !!t.is_vip,
+    isVip: !!t.is_vip && flag('family_passes'),
     skipCount: t.skip_count,
     roundId: t.round_id,
     joinedAt: t.joined_at,

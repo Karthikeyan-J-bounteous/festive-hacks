@@ -66,10 +66,12 @@ const WAIT_DOT = { green: 'bg-wait-green', amber: 'bg-wait-amber', red: 'bg-wait
         @if (blocker(); as why) {
           <p class="mt-5 rounded-xl border border-primary/30 px-3 py-2 text-sm font-medium text-primary">{{ why }}</p>
         }
-        <button class="btn btn-primary btn-lg mt-5 w-full"
-                [disabled]="!!blocker() || busy()" (click)="join.emit({ option: option(), partySize: party() })">
-          {{ busy() ? 'Joining…' : 'Join the queue' }}
-        </button>
+        @if (!feastOff()) {
+          <button class="btn btn-primary btn-lg mt-5 w-full"
+                  [disabled]="!!blocker() || busy()" (click)="join.emit({ option: option(), partySize: party() })">
+            {{ busy() ? 'Joining…' : 'Join the queue' }}
+          </button>
+        }
       }
     </section>
   `,
@@ -80,6 +82,8 @@ export class BoothSheet {
   readonly presenceValid = input(false);
   readonly ticketsInEvent = input(0);
   readonly busy = input(false);
+  /** Flagsmith `feast_rounds` off: no joining feast (batch) booths. */
+  readonly feastRounds = input(true);
 
   readonly join = output<{ option: string; partySize: number }>();
   readonly close = output<void>();
@@ -90,7 +94,9 @@ export class BoothSheet {
   protected readonly isGroup = computed(() => GROUP_SERVICES.has(this.booth().serviceType));
   protected readonly colourText = computed(() => COLOUR_TEXT[this.booth().colour]);
   protected readonly dot = computed(() => WAIT_DOT[this.booth().colour]);
+  protected readonly feastOff = computed(() => this.booth().mode === 'batch' && !this.feastRounds());
   protected readonly blocker = computed(() => {
+    if (this.feastOff()) return 'Feast rounds are paused right now. Please check back soon.';
     if (this.booth().paused) return 'This booth is paused for a moment.';
     if (!this.presenceValid()) return 'Verify you are at the venue first (top of the screen).';
     if (this.ticketsInEvent() >= 3) return 'You can hold at most 3 queues per event.';

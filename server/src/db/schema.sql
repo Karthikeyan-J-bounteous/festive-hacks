@@ -125,5 +125,12 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_per_booth ON tickets(user_id, booth_id)
   WHERE status IN ('waiting','away','called','serving');
 
+-- Flagsmith eta_style A/B (§14.2): the variant a guest saw when joining, and whether they cancelled.
+CREATE TABLE IF NOT EXISTS ab_eta (
+  ticket_id INTEGER PRIMARY KEY REFERENCES tickets(id),
+  variant   TEXT NOT NULL CHECK (variant IN ('minutes','people')),
+  cancelled INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS tickets_by_booth_status ON tickets(booth_id, status);
 CREATE INDEX IF NOT EXISTS tickets_by_user ON tickets(user_id, event_id);

@@ -15,6 +15,8 @@ interface Overview {
   };
   events: AdminEvent[];
   booths: Booth[];
+  /** Flagsmith eta_style A/B (§14.2); null when Flagsmith has no key. */
+  abTest: Record<'minutes' | 'people', { joined: number; cancelled: number; cancelRate: number | null }> | null;
 }
 
 /** KPIs + live map with badges (SPEC-LITE §8). Refreshes on booth changes and every 15 s. */
@@ -24,7 +26,7 @@ interface Overview {
   host: { class: 'flex flex-col gap-6' },
   template: `
     @if (data(); as d) {
-      <section class="grid grid-cols-2 gap-3 md:grid-cols-5" aria-label="Key numbers">
+      <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-label="Key numbers">
         @for (k of tiles(); track k.label) {
           <div class="card relative overflow-hidden p-4 pl-5">
             <span class="absolute inset-y-3 left-0 w-1 rounded-r-full bg-[linear-gradient(var(--primary),var(--accent))]" aria-hidden="true"></span>
@@ -87,8 +89,21 @@ export class OverviewTab implements OnInit {
       { label: 'Avg wait', value: `${k.avgWaitMin} min`, sub: 'for a new guest' },
       { label: 'Longest queue', value: k.longestQueue ? `${k.longestQueue.waitMin} min` : '—', sub: k.longestQueue?.name ?? '' },
       { label: 'Passes used', value: `${k.passes.used} / ${k.passes.issued}`, sub: 'family passes claimed' },
+      ...this.abTile(),
     ];
   });
+
+  /** Cancel rate per ETA wording: "minutes" (~15–20 min) vs "people" (3 people ahead). */
+  private abTile() {
+    const ab = this.data()?.abTest;
+    if (!ab) return [];
+    const pct = (r: number | null) => (r === null ? '—' : `${r}%`);
+    return [{
+      label: 'ETA A/B cancels',
+      value: `${pct(ab.minutes.cancelRate)} · ${pct(ab.people.cancelRate)}`,
+      sub: `minutes (${ab.minutes.joined}) vs people (${ab.people.joined})`,
+    }];
+  }
 
   private pending: ReturnType<typeof setTimeout> | null = null;
 

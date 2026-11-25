@@ -15,6 +15,7 @@ import { type Pass, type PassEvent, type Side, assertQuota, generateToken, usedB
 import { emitBoothChanged, emitEventStatus } from '../socket';
 import { noteEventLive } from '../ticker';
 import { boothView } from './views';
+import { flagsmithEnabled } from '../sponsors/flags';
 
 const Id = z.coerce.number().int().positive();
 const SideSchema = z.enum(['bride', 'groom']);
@@ -419,8 +420,24 @@ adminRouter.get('/overview', requireRole(ACTIONS.viewOverview), (req, res) => {
     },
     events: events.map((e) => eventView(e, now)),
     booths, // live map badges
+    abTest: flagsmithEnabled() ? etaAbTest(weddingId) : null,
   });
 });
+
+/** Flagsmith eta_style A/B (§14.2): joins and guest cancels per variant. */
+function etaAbTest(weddingId: number) {
+  const rows = all<{ variant: 'minutes' | 'people'; joined: number; cancelled: number }>(
+    `SELECT a.variant, COUNT(*) AS joined, SUM(a.cancelled) AS cancelled
+     FROM ab_eta a JOIN tickets t ON t.id = a.ticket_id JOIN events e ON e.id = t.event_id
+     WHERE e.wedding_id = ? GROUP BY a.variant`, weddingId);
+  const arm = (v: 'minutes' | 'people') => {
+    const r = rows.find((x) => x.variant === v);
+    const joined = r?.joined ?? 0;
+    const cancelled = r?.cancelled ?? 0;
+    return { joined, cancelled, cancelRate: joined ? Math.round((cancelled / joined) * 100) : null };
+  };
+  return { minutes: arm('minutes'), people: arm('people') };
+}
 
 /** Venue screen: the rotating code (typed by hand), the QR token, and who's being served per live booth. */
 adminRouter.get('/venue-code', requireRole(ACTIONS.viewOverview), (req, res) => {

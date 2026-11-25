@@ -6,7 +6,7 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 
 const TABLES_IN_DELETE_ORDER = [
-  'tickets', 'rounds', 'presence', 'pass_events', 'family_passes', 'pass_quotas',
+  'ab_eta', 'tickets', 'rounds', 'presence', 'pass_events', 'family_passes', 'pass_quotas',
   'booth_handlers', 'booths', 'events', 'memberships', 'weddings', 'users',
 ];
 
