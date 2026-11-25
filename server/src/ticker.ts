@@ -119,6 +119,11 @@ export function stopTicker(): void {
   timer = null;
 }
 
+/** An admin override already emitted `event:status`; record it so the next tick doesn't repeat it. */
+export function noteEventLive(eventId: number, live: boolean): void {
+  liveState.set(eventId, live);
+}
+
 /** Test hook: forget in-memory state between cases. */
 export function resetTickerState(): void {
   liveState.clear();

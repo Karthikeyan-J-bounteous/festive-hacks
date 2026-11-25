@@ -199,3 +199,65 @@ describe('admin passes and quotas', () => {
     expect((await guest.post('/api/admin/passes').send({ side: 'bride', label: 'x', eventIds: [first.eventId] })).status).toBe(403);
   });
 });
+
+describe('admin events, booths, overview, venue code', () => {
+  it('creates an event, forces it live, then ending it cancels its open tickets', async () => {
+    const admin = await login('9000000001');
+    const now = Date.now();
+    const ev = (await admin.post('/api/admin/events')
+      .send({ type: 'sangeet', name: 'After-party', startsAt: now + 48 * 3600_000, endsAt: now + 50 * 3600_000 })
+      .expect(201)).body.event;
+    expect(ev.live).toBe(false);
+    expect((await admin.post(`/api/admin/events/${ev.id}/live`).send({ override: 'live' }).expect(200)).body.event.live).toBe(true);
+    const bad = await admin.patch(`/api/admin/events/${ev.id}`).send({ endsAt: 1 });
+    expect(bad.status).toBe(400);
+
+    const booth = (await admin.post('/api/admin/booths')
+      .send({ eventId: ev.id, name: 'Dhol corner', serviceType: 'music', mode: 'live', options: [{ label: 'Beat', minutes: 2 }] })
+      .expect(201)).body.booth;
+    expect(booth.codePrefix).toBe('D');
+    const guest = await login('9000000105');
+    await guest.post('/api/guest/presence').send({ code: currentCode(
+      (db.prepare('SELECT qr_secret FROM weddings').get() as { qr_secret: string }).qr_secret, Date.now()).code }).expect(200);
+    const t = (await guest.post('/api/guest/tickets').send({ boothId: booth.id, option: 'Beat' }).expect(201)).body.ticket;
+    expect(t.code).toMatch(/^D-/);
+
+    await admin.post(`/api/admin/events/${ev.id}/live`).send({ override: 'ended' }).expect(200);
+    expect((db.prepare('SELECT status FROM tickets WHERE id = ?').get(t.id) as { status: string }).status).toBe('cancelled');
+  });
+
+  it('batch booth needs round fields; prefix clash is 409; pin and handler assignment work', async () => {
+    const admin = await login('9000000001');
+    const [ev] = (await admin.get('/api/admin/events')).body.events;
+    const base = { eventId: ev.id, name: 'Tiffin', serviceType: 'feast', options: [{ label: 'Seat', minutes: 20 }] };
+    expect((await admin.post('/api/admin/booths').send({ ...base, mode: 'batch' })).status).toBe(400);
+    expect((await admin.post('/api/admin/booths').send({ ...base, mode: 'live', codePrefix: 'M' })).body.error).toBe('prefix_taken');
+
+    const id = boothId('Nail art');
+    const pinned = await admin.patch(`/api/admin/booths/${id}/pin`).send({ x_pct: 61.5, y_pct: 12 }).expect(200);
+    expect([pinned.body.booth.x, pinned.body.booth.y]).toEqual([61.5, 12]);
+    expect((await admin.patch(`/api/admin/booths/${id}/pin`).send({ x_pct: 120, y_pct: 0 })).status).toBe(400);
+
+    const assigned = await admin.post(`/api/admin/booths/${id}/handlers`).send({ phone: '9000000777' }).expect(201);
+    expect(assigned.body.booth.handlers.map((h: { phone: string }) => h.phone)).toContain('9000000777');
+    const newHandler = await login('9000000777');
+    expect((await newHandler.get('/api/me')).body.home).toBe('/booth');
+    await newHandler.post(`/api/booth/booths/${id}/pause`).expect(200);
+  });
+
+  it('overview KPIs and venue code are admin-only', async () => {
+    const admin = await login('9000000001');
+    const o = (await admin.get('/api/admin/overview').expect(200)).body;
+    expect(o.kpis.activeTickets).toBeGreaterThan(0);
+    expect(o.kpis.longestQueue).toHaveProperty('name');
+    expect(o.kpis.passes.used).toBeLessThanOrEqual(o.kpis.passes.issued);
+    const v = (await admin.get('/api/admin/venue-code').expect(200)).body;
+    expect(v.code).toMatch(/^\d{4}$/);
+    expect(v.expiresAt).toBeGreaterThan(Date.now());
+
+    const meena = await login('9000000010');
+    for (const path of ['/api/admin/overview', '/api/admin/venue-code', '/api/admin/events', '/api/admin/booths']) {
+      expect((await meena.get(path)).status).toBe(403);
+    }
+  });
+});
