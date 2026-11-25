@@ -271,28 +271,33 @@ Admin   GET|POST|PATCH /api/admin/events ; POST /api/admin/events/:id/live {over
 
 ## 11. Build plan against the Pro limit
 
-Rule: **one slice per prompt, `/clear` between stages, commit after each.** Use Sonnet throughout. Only the "Claude" column spends usage.
+Rule: **one slice per prompt, `/clear` between stages, commit after each.** **Claude builds everything, server and UI.** The "You do" column is only what Claude can't do: accounts, keys, deploy clicks, the phone test and the recording.
 
-| Stage | Claude does | You do by hand | Done when |
+| Stage | Claude does | You do | Done when |
 |---|---|---|---|
-| **S0** (0:00–0:30) | Schema + seed + Express skeleton | `ng new`, Tailwind, workspaces, `.env`, git init, theme vars | `npm run dev` shows seeded data |
-| **S1** (0:30–1:30) | All `/engine` files + Jest tests (prompts 1–2) | Read `live` + `batch` tests once | Tests green |
-| **S2** (1:30–2:15) | Auth, `requireRole`, routes for guest + booth | Login screen, route guards | Seeded users land on correct home |
-| **S3** (2:15–3:30) | Guest bootstrap + socket wiring | Splash, `theme.service`, `venue-map` SVG, booth sheet, ticket card, takeover | **Checkpoint A:** guest joins a queue and gets called |
-| **S4** (3:30–4:15) | Booth routes (done in S2) + feast round logic hookup | Handler console UI | Handler call → guest phone takes over |
-| **S5** (4:15–5:00) | Passes routes + tests | Pass form, QR card, claim screen | 41st bride pass blocked, claimed pass jumps lane |
-| **S6** (5:00–6:00) | Admin routes (events, booths, quotas, overview, venue-code) | Admin tabs UI, click-to-place pin, venue screen | **Checkpoint B:** full demo path works |
-| **S6.5** (6:00–7:00) | Sponsors §14: Sarvam → Flagsmith → NudgeBee endpoints | Sponsor accounts + keys, NudgeBee workflow on its canvas | Voice alert plays; flag flip changes phones; NudgeBee approval opens a 2nd artist |
-| **S7** (7:00–7:45) | `simulate.ts` | README, deploy to Render, record demo | Live URL works on phone |
-| Buffer (7:45–8:00) | Bug fixes only | Screenshots | |
+| **S0** | Schema + seed + Express skeleton; `ng new`, Tailwind, workspaces, theme vars | `.env` | `npm run dev` shows seeded data |
+| **S1** | All `/engine` files + tests (prompts 1–2) | Read `live` + `batch` tests once | Tests green |
+| **S2** | Auth, `requireRole`, routes for guest + booth | — | Seeded users land on correct home (API) |
+| **S3** | Guest bootstrap + socket wiring | — | Socket events fire |
+| **S4** | Booth routes (done in S2) + feast round logic hookup | — | Feast rounds via API |
+| **S5** | Passes routes + tests | — | 41st bride pass blocked (API) |
+| **S6** | Admin routes (events, booths, quotas, overview, venue-code) | — | Admin API tests green |
+| **U1** | Web core: `api`, `auth`, `socket`, `theme.service` + `themes.ts`, login (phone + OTP), role guards, home redirect | — | Seeded users land on the correct home **in the browser** |
+| **U2** | Guest flow: splash, presence (geo + code), `venue-map` SVG, event chips, booth sheet, ticket tray, your-turn takeover, live socket updates | — | **Checkpoint A:** guest joins a queue and gets called |
+| **U3** | Handler console: booth switcher, Now serving + timer, Next 3, Call next/Start/Done/Skip, Pause, feast round builder | — | Handler call → guest phone takes over |
+| **U4** | Admin tabs: Overview, Events, Layout (click-to-place pin, handlers, add booth); Venue screen | — | Venue screen code works for presence |
+| **U5** | Passes tab (quota grid, generate form, QR card with Share/Download, table with Revoke) + guest claim screen `/p/:token` | — | **Checkpoint B:** full demo path works |
+| **S6.5** | Sponsors §14: Sarvam → Flagsmith → NudgeBee endpoints + their UI bits | Sponsor accounts + keys, NudgeBee workflow on its canvas | Voice alert plays; flag flip changes phones; NudgeBee approval opens a 2nd artist |
+| **S7** | `simulate.ts`, README, Express serves the Angular build | Deploy to Render, record demo | Live URL works on phone |
+| Buffer | Bug fixes only | Screenshots | |
 
-**If behind at Checkpoint A (3:30):** drop the feast batch UI (keep live queues only).
-**If behind at Checkpoint B (6:00):** drop the simulation and put a static comparison table in the README.
+**If behind at Checkpoint A (U2):** drop the feast batch UI (keep live queues only).
+**If behind at Checkpoint B (U5):** drop the simulation and put a static comparison table in the README.
 **Sponsor cut order (if S6.5 runs long):** NudgeBee webhook-out first (keep the schedule-triggered workflow) → Flagsmith A/B (keep kill-switch flags) → Sarvam translation (keep TTS). Sarvam TTS is the last to go.
 **Never cut:** themed guest flow, live engine, family passes with quotas, presence with rotating code, booth console.
 Sign up for Sarvam, Flagsmith and NudgeBee **during S1–S2** (while Claude works) so keys are ready by S6.5.
 
-**When you hit the usage limit:** commit, write the next prompt into `TODO.md`, then do the "by hand" column, deploy setup, README or demo recording until the window resets. Do the Claude-heavy stages (S1, S2, S5, S6 routes) first in a fresh window.
+**When you hit the usage limit:** commit, write the next prompt into `TODO.md`, then do sponsor sign-ups, deploy setup or the phone test until the window resets. Start each U stage in a fresh window.
 
 ---
 
@@ -396,6 +401,21 @@ npm install · npm run dev · npm test -w server · npm run seed
 **S6**
 > Read SPEC-LITE.md §7 Admin lines. Add admin routes: events (create/patch/live override), booths (create/patch/pin/handlers), overview KPIs, and `venue-code`. Role-guard them. Run tests.
 
+**U1 (web core)**
+> Read SPEC-LITE.md §1, §2, §3. In `/web`: `core/` api (fetch, `{error,message}` → thrown ApiError), auth (signal of `/api/me`), socket (socket.io-client, typed events), `theme.service` + `themes.ts`. Login (phone → OTP 123456), role guards, `/` redirects to `home`. Build with `ng build`.
+
+**U2 (guest)**
+> Read SPEC-LITE.md §3, §4, §8 "Guest". Build `/w`: splash, presence (geo then code fallback), `shared/venue-map`, event chips, booth sheet with party stepper, ticket tray (max 3), your-turn takeover (vibrate + confetti), live `booth:update`/`ticket:update`/`ticket:called`/`event:status`. `ng build`.
+
+**U3 (handler)**
+> Read SPEC-LITE.md §8 "Booth handler". Build `/booth` against `/api/booth/*` and `booth:update`. `ng build`.
+
+**U4 (admin)**
+> Read SPEC-LITE.md §4, §8 "Admin" (Overview, Events, Layout, Venue screen). Build `/admin` tabs and `/admin/venue` (QR via `qrcode`, 30-s ring, `code:rotate`). `ng build`.
+
+**U5 (passes)**
+> Read SPEC-LITE.md §6 "Family Passes", §8 "Admin → Passes". Build the Passes tab and `/p/:token` claim screen. `ng build`, then walk the §12 demo path against `npm run dev`.
+
 **S6.5a (Sarvam)**
 > Read SPEC-LITE.md §14 intro + §14.1. Look up the Sarvam translate + text-to-speech API reference first. Add `sponsors/sarvam.ts` and hook it after `ticket:called` commits; emit `ticket:voice`. Add the language picker field to the guest presence API. Keyless = no-op. Unit-test the cache + keyless path with a mocked fetch.
 
@@ -411,7 +431,7 @@ npm install · npm run dev · npm test -w server · npm run seed
 **Debugging (any time)**
 > Test `<name>` fails with: `<first 10 lines of error>`. Fix the root cause in `<file>`. Don't refactor. Re-run only that test.
 
-**Hand-built UI tips (no Claude needed)**
+**UI tips**
 - `venue-map`: one `<svg viewBox="0 0 1000 700">`, `@for` over zones and booths, `(click)` on the svg turns client coords into `x_pct/y_pct`.
 - `theme.service`: one `apply(key)` that writes CSS variables on `document.body`; `transition: background-color .4s, color .4s` on `body`.
 - Takeover: a full-screen fixed div bound to a `called` signal, plus `navigator.vibrate` and `confetti()`.

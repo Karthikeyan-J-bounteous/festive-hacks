@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { tx } from '../db/db';
-import { one, run } from '../db/queries';
+import { type EventRow, all, one, run } from '../db/queries';
 import { authenticate, homeFor, loadMemberships, sessionCookie } from '../auth';
 import { HttpError, parse } from '../http';
+import { isLive } from '../engine/booking';
 
 export const DEMO_OTP = '123456';
 
@@ -14,6 +15,17 @@ const VerifyBody = z.object({ phone: Phone, otp: z.string().trim() });
 interface UserRow { id: number; phone: string; name: string | null; lang: string }
 
 export const authRouter = Router();
+
+/** Public: what the login screen and splash show before sign-in (names + the live event's theme). */
+authRouter.get('/wedding', (_req, res) => {
+  const w = one<{ id: number; name: string; couple_names: string }>(
+    `SELECT id, name, couple_names FROM weddings ORDER BY id LIMIT 1`);
+  if (!w) throw new HttpError(404, 'not_found', 'No wedding yet');
+  const now = Date.now();
+  const live = all<EventRow>(`SELECT * FROM events WHERE wedding_id = ? ORDER BY sort_order`, w.id)
+    .find((e) => isLive(e, now));
+  res.json({ name: w.name, coupleNames: w.couple_names, liveEvent: live ? { type: live.type, name: live.name } : null });
+});
 
 authRouter.post('/auth/otp', (req, res) => {
   parse(OtpBody, req.body);
