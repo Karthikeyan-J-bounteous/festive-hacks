@@ -51,6 +51,39 @@ describe('booth routes', () => {
   });
 });
 
+describe('feast rounds', () => {
+  it('next round seats the waiting families, closes the old round, then refuses an empty hall', async () => {
+    const ravi = await login('9000000011'); // feast handler
+    const dining = boothId('Dining hall');
+    const next = () => ravi.post(`/api/booth/booths/${dining}/rounds/next`);
+    const status = (ids: number[]) => ids.map((id) =>
+      (db.prepare('SELECT status FROM tickets WHERE id = ?').get(id) as { status: string }).status);
+
+    const r1 = await next().expect(200);
+    expect(r1.body.roundNo).toBe(5);
+    expect(r1.body.seatedTicketIds).toHaveLength(5);  // 4+6+3+5+2 = 20 of 40 seats
+    expect(r1.body.finishedTicketIds).toHaveLength(5); // round 4's diners
+    expect(status(r1.body.seatedTicketIds)).toEqual(Array(5).fill('called'));
+    expect(status(r1.body.finishedTicketIds)).toEqual(Array(5).fill('done'));
+    expect(r1.body.booth.round).toMatchObject({ roundNo: 5, seatsUsed: 20 });
+
+    const r2 = await next().expect(200); // nobody waiting: just closes round 5
+    expect(r2.body).toMatchObject({ roundId: null, roundNo: null, seatedTicketIds: [] });
+    expect(r2.body.booth.round).toBeNull();
+
+    const r3 = await next();
+    expect(r3.status).toBe(409);
+    expect(r3.body.error).toBe('queue_empty');
+  });
+
+  it('call-next is refused at a feast booth', async () => {
+    const ravi = await login('9000000011');
+    const res = await ravi.post(`/api/booth/booths/${boothId('Dining hall')}/call-next`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('not_live_booth');
+  });
+});
+
 describe('guest routes', () => {
   it('guest without presence gets 403 on join, then joins after the venue code', async () => {
     const guest = await login('9000000999'); // new phone → guest membership, no presence

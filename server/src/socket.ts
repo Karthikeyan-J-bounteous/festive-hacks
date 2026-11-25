@@ -50,8 +50,11 @@ function guestNames(boothId: number): Map<number, string | null> {
   return new Map(rows.map((r) => [r.id, r.name]));
 }
 
-/** One ticket's latest state to its owner. `almost` marks the "you're nearly up" nudge. */
-export function emitTicket(ticketId: number, now: number, extra: { almost?: boolean } = {}): void {
+/**
+ * One ticket's latest state to its owner. `almost` marks the "you're nearly up" nudge;
+ * `nextRound` marks "you're in the next feast round".
+ */
+export function emitTicket(ticketId: number, now: number, extra: { almost?: boolean; nextRound?: boolean } = {}): void {
   if (!io) return;
   const t = getTicket(ticketId);
   const booth = t && getBooth(t.booth_id);
@@ -70,15 +73,21 @@ export function emitCalled(ticketId: number, now: number): void {
 /**
  * A booth's queue changed: handlers get the full console state, everyone else the map summary,
  * and every guest still in the line (plus `changedTicketIds`, which may have left it) gets a fresh ETA.
+ * Tickets in `opts.nextRound` get that update flagged `nextRound: true`.
  */
-export function emitBoothChanged(boothId: number, now: number, changedTicketIds: readonly number[] = []): void {
+export function emitBoothChanged(
+  boothId: number, now: number, changedTicketIds: readonly number[] = [], opts: { nextRound?: readonly number[] } = {},
+): void {
   if (!io) return;
   const booth = getBooth(boothId);
   if (!booth) return;
   const tickets = activeTickets(boothId);
   io.to(`booth:${boothId}`).emit('booth:update', { booth: boothState(booth, now, guestNames(boothId)) });
   io.to(`wedding:${booth.wedding_id}`).except(`booth:${boothId}`).emit('booth:update', { booth: boothView(booth, now, tickets) });
-  for (const id of new Set([...tickets.map((t) => t.id), ...changedTicketIds])) emitTicket(id, now);
+  const nextRound = new Set(opts.nextRound);
+  for (const id of new Set([...tickets.map((t) => t.id), ...changedTicketIds])) {
+    emitTicket(id, now, nextRound.has(id) ? { nextRound: true } : {});
+  }
 }
 
 export function emitEventStatus(weddingId: number, event: { id: number; type: string; name: string }, live: boolean): void {

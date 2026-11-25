@@ -38,7 +38,8 @@ export interface NextRoundResult {
   finishRoundId: number | null;
   /** tickets of that round → 'done' */
   finishTicketIds: number[];
-  newRound: { round_no: number; started_at: number; ends_at: number };
+  /** null when nobody can be seated: the hall just closes the current round */
+  newRound: { round_no: number; started_at: number; ends_at: number } | null;
   /** tickets seated now → 'called' with the new round id */
   seatTicketIds: number[];
   seatsLeft: number;
@@ -59,13 +60,17 @@ export function startNextRound(
   const waiting = boothTickets.filter((t) => t.status === 'waiting');
   const [seated = [], nextUp = []] = planRounds(waiting, booth.round_seats, 2);
   const seatsUsed = seated.reduce((s, t) => s + t.party_size, 0);
+  // An empty round would only push every later ETA back by round_minutes.
+  if (seated.length === 0 && !current) throw new EngineError('queue_empty', 'Nobody is waiting');
 
   return {
     finishRoundId: current?.id ?? null,
     finishTicketIds: current
       ? boothTickets.filter((t) => t.round_id === current.id && (t.status === 'called' || t.status === 'serving')).map((t) => t.id)
       : [],
-    newRound: { round_no: lastNo + 1, started_at: now, ends_at: now + booth.round_minutes * MINUTE },
+    newRound: seated.length
+      ? { round_no: lastNo + 1, started_at: now, ends_at: now + booth.round_minutes * MINUTE }
+      : null,
     seatTicketIds: seated.map((t) => t.id),
     seatsLeft: booth.round_seats - seatsUsed,
     nextUpTicketIds: nextUp.map((t) => t.id),

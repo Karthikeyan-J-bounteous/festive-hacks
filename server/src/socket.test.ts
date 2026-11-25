@@ -57,4 +57,16 @@ describe('socket', () => {
     expect(update.booth.id).toBe(nailArt);
     expect(Array.isArray(update.booth.queue)).toBe(true);
   });
+
+  it('next feast round sends ticket:called to a seated guest', async () => {
+    const dining = (db.prepare(`SELECT id FROM booths WHERE name = 'Dining hall'`).get() as { id: number }).id;
+    const handlerCookie = await cookieFor('9000000011');
+    const guest = open(await cookieFor('9000000106')); // party of 6 waiting at the Dining hall
+    await once(guest, 'connect');
+
+    const called = once<{ ticket: { boothId: number; status: string; roundId: number } }>(guest, 'ticket:called');
+    const res = await request(app).post(`/api/booth/booths/${dining}/rounds/next`).set('Cookie', handlerCookie).expect(200);
+
+    expect((await called).ticket).toMatchObject({ boothId: dining, status: 'called', roundId: res.body.roundId });
+  });
 });

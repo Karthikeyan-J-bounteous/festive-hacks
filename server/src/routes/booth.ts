@@ -109,6 +109,7 @@ boothRouter.post('/booths/:id/rounds/next', operateBooth, (req, res) => {
     const r = startNextRound(booth, activeTickets(id), boothRounds(id), now);
     if (r.finishRoundId !== null) run(`UPDATE rounds SET status = 'done' WHERE id = ?`, r.finishRoundId);
     for (const tid of r.finishTicketIds) applyPatch(tid, { status: 'done', done_at: now });
+    if (!r.newRound) return { ...r, roundId: null };
     const roundId = Number(run(
       `INSERT INTO rounds (booth_id, round_no, status, started_at, ends_at) VALUES (?,?,'seating',?,?)`,
       id, r.newRound.round_no, r.newRound.started_at, r.newRound.ends_at).lastInsertRowid);
@@ -117,7 +118,7 @@ boothRouter.post('/booths/:id/rounds/next', operateBooth, (req, res) => {
   });
   res.json({
     roundId: result.roundId,
-    roundNo: result.newRound.round_no,
+    roundNo: result.newRound?.round_no ?? null,
     seatedTicketIds: result.seatTicketIds,
     finishedTicketIds: result.finishTicketIds,
     nextUpTicketIds: result.nextUpTicketIds,
@@ -125,7 +126,7 @@ boothRouter.post('/booths/:id/rounds/next', operateBooth, (req, res) => {
     booth: stateOf(getBooth(id)!, now),
   });
   for (const tid of result.seatTicketIds) emitCalled(tid, now);
-  emitBoothChanged(id, now, result.finishTicketIds);
+  emitBoothChanged(id, now, result.finishTicketIds, { nextRound: result.nextUpTicketIds });
 });
 
 boothRouter.post('/tickets/:id/:action(start|done|skip)', operateTicket, (req, res) => {

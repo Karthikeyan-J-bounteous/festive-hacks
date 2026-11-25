@@ -80,6 +80,15 @@ describe('startNextRound', () => {
     expect(r).toMatchObject({ finishRoundId: null, finishTicketIds: [], newRound: { round_no: 1 }, seatTicketIds: [7] });
   });
 
+  it('with nobody waiting, closes the current round without opening an empty one', () => {
+    const r = startNextRound(booth, [mkTicket({ id: 1, status: 'called', round_id: 2 })], rounds, 1000);
+    expect(r).toMatchObject({ finishRoundId: 2, finishTicketIds: [1], newRound: null, seatTicketIds: [] });
+  });
+
+  it('with nobody waiting and no round seating, refuses', () => {
+    expect(() => startNextRound(booth, [], rounds.slice(0, 1), 0)).toThrow('Nobody is waiting');
+  });
+
   it('rejects live booths and paused booths', () => {
     expect(() => startNextRound(mkBooth(), [], [], 0)).toThrow('not_batch_booth');
     expect(() => startNextRound({ ...booth, paused: 1 }, [], [], 0)).toThrow('booth_paused');
