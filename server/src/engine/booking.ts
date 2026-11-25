@@ -17,6 +17,12 @@ export function isLive(e: EventTiming, now: number): boolean {
   return e.starts_at - 30 * MINUTE <= now && now < e.ends_at;
 }
 
+/** Over for good: forced ended, or past its end time while on auto. Its open tickets get cancelled. */
+export function isEnded(e: EventTiming, now: number): boolean {
+  if (e.status_override === 'ended') return true;
+  return e.status_override === 'auto' && now >= e.ends_at;
+}
+
 export type JoinError =
   | 'event_not_live' | 'booth_paused' | 'presence_required'
   | 'duplicate' | 'max_tickets' | 'bad_party_size' | 'bad_option';

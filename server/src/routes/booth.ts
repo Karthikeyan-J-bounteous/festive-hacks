@@ -12,6 +12,7 @@ import { callNext, learnSpeed, skip, transition } from '../engine/live';
 import { startNextRound } from '../engine/batch';
 import { isInProgress } from '../engine/types';
 import { boothState, ticketView } from './views';
+import { emitBoothChanged, emitCalled } from '../socket';
 
 const Id = z.coerce.number().int().positive();
 const PauseBody = z.object({ paused: z.boolean().optional() }).default({});
@@ -84,6 +85,8 @@ boothRouter.post('/booths/:id/call-next', operateBooth, (req, res) => {
     deferredOthers: result.deferredOthers,
     booth: stateOf(booth, now),
   });
+  emitCalled(result.ticketId, now);
+  emitBoothChanged(id, now);
 });
 
 boothRouter.post('/booths/:id/pause', operateBooth, (req, res) => {
@@ -93,7 +96,9 @@ boothRouter.post('/booths/:id/pause', operateBooth, (req, res) => {
     const booth = getBooth(id)!;
     run(`UPDATE booths SET paused = ? WHERE id = ?`, (body.paused ?? !booth.paused) ? 1 : 0, id);
   });
-  res.json({ booth: stateOf(getBooth(id)!, Date.now()) });
+  const now = Date.now();
+  res.json({ booth: stateOf(getBooth(id)!, now) });
+  emitBoothChanged(id, now);
 });
 
 boothRouter.post('/booths/:id/rounds/next', operateBooth, (req, res) => {
@@ -119,6 +124,8 @@ boothRouter.post('/booths/:id/rounds/next', operateBooth, (req, res) => {
     seatsLeft: result.seatsLeft,
     booth: stateOf(getBooth(id)!, now),
   });
+  for (const tid of result.seatTicketIds) emitCalled(tid, now);
+  emitBoothChanged(id, now, result.finishTicketIds);
 });
 
 boothRouter.post('/tickets/:id/:action(start|done|skip)', operateTicket, (req, res) => {
@@ -141,4 +148,5 @@ boothRouter.post('/tickets/:id/:action(start|done|skip)', operateTicket, (req, r
   const t = getTicket(id)!;
   const booth = getBooth(t.booth_id)!;
   res.json({ ticket: ticketView(t, booth, activeTickets(booth.id), now), booth: stateOf(booth, now) });
+  emitBoothChanged(booth.id, now, [id]);
 });

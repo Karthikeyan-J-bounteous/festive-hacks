@@ -54,8 +54,12 @@ export function homeFor(memberships: readonly Membership[]): string {
 
 /** Verify the session cookie and load roles. Throws 401 without a valid session. */
 export function loadAuth(req: Request): Auth {
-  if (req.auth) return req.auth;
-  const token = req.cookies?.[SESSION_COOKIE];
+  if (!req.auth) req.auth = authFromToken(req.cookies?.[SESSION_COOKIE]);
+  return req.auth;
+}
+
+/** Session token → roles. Shared by HTTP and socket handshakes. */
+export function authFromToken(token: string | undefined): Auth {
   if (!token) throw new HttpError(401, 'unauthenticated', 'Please log in');
   let uid: number;
   try {
@@ -73,8 +77,7 @@ export function loadAuth(req: Request): Auth {
     `SELECT h.booth_id FROM booth_handlers h JOIN booths b ON b.id = h.booth_id JOIN events e ON e.id = b.event_id
      WHERE h.user_id = ? AND e.wedding_id = ?`, uid, weddingId).map((r) => r.booth_id);
 
-  req.auth = { userId: uid, weddingId, memberships: memberships.filter((m) => m.wedding_id === weddingId), handlerBoothIds };
-  return req.auth;
+  return { userId: uid, weddingId, memberships: memberships.filter((m) => m.wedding_id === weddingId), handlerBoothIds };
 }
 
 export const authenticate: RequestHandler = (req, _res, next) => {

@@ -2,6 +2,9 @@ import { config } from './env';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import fs from 'node:fs';
+import http from 'node:http';
+import { initSocket } from './socket';
+import { startTicker } from './ticker';
 import path from 'node:path';
 import { db } from './db/db';
 import { seedIfEmpty } from './db/seed';
@@ -37,5 +40,8 @@ if (fs.existsSync(webDist)) {
 }
 
 if (require.main === module) {
-  app.listen(config.port, () => console.log(`Varisai server on http://localhost:${config.port}`));
+  const server = http.createServer(app);
+  initSocket(server);
+  startTicker();
+  server.listen(config.port, () => console.log(`Varisai server on http://localhost:${config.port}`));
 }

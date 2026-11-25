@@ -13,6 +13,7 @@ import { PRESENCE_TTL_MS, checkGeo, verifyCode } from '../engine/presence';
 import { formatCode, transition } from '../engine/live';
 import { checkClaim, isFamilyFor } from '../engine/passes';
 import { boothView, ticketView } from './views';
+import { emitBoothChanged } from '../socket';
 
 const JOIN_MESSAGES: Record<JoinError, string> = {
   event_not_live: 'This event has not started yet',
@@ -146,6 +147,7 @@ guestRouter.post('/tickets', (req, res) => {
   });
 
   res.status(201).json(view(ticketId, now));
+  emitBoothChanged(body.boothId, now);
 });
 
 guestRouter.post('/tickets/:id/:action(cancel|away|back)', (req, res) => {
@@ -153,12 +155,14 @@ guestRouter.post('/tickets/:id/:action(cancel|away|back)', (req, res) => {
   const id = parse(Id, req.params.id);
   const action = req.params.action as 'cancel' | 'away' | 'back';
   const now = Date.now();
-  tx(() => {
+  const boothId = tx(() => {
     const t = getTicket(id);
     if (!t || t.user_id !== userId) throw new HttpError(404, 'not_found', 'Ticket not found');
     applyPatch(t.id, transition(t, action, now));
+    return t.booth_id;
   });
   res.json(view(id, now));
+  emitBoothChanged(boothId, now, [id]);
 });
 
 guestRouter.post('/passes/claim', (req, res) => {
