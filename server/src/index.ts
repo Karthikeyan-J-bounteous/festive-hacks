@@ -12,6 +12,7 @@ import { errorHandler } from './http';
 import { authRouter } from './routes/auth';
 import { guestRouter } from './routes/guest';
 import { boothRouter } from './routes/booth';
+import { adminRouter } from './routes/admin';
 
 if (seedIfEmpty()) console.log('Seeded empty database.');
 
@@ -27,6 +28,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', authRouter);
 app.use('/api/guest', guestRouter);
 app.use('/api/booth', boothRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'not_found', message: 'No such API route' });
 });

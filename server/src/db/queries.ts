@@ -2,7 +2,7 @@
 import type { SQLInputValue } from 'node:sqlite';
 import { db } from './db';
 import type { Booth, Round, Ticket, TicketPatch } from '../engine/types';
-import type { Pass, PassEvent } from '../engine/passes';
+import { isFamilyFor, type Pass, type PassEvent } from '../engine/passes';
 import type { EventTiming } from '../engine/booking';
 
 export function one<T>(sql: string, ...params: SQLInputValue[]): T | undefined {
@@ -79,6 +79,25 @@ export function passesForUser(userId: number, weddingId: number): { passes: Pass
       ...passes.map((p) => p.id))
     : [];
   return { passes, passEvents };
+}
+
+/**
+ * Recompute the cached `is_vip` on a user's queued (waiting/away) tickets after a pass claim or revoke.
+ * Returns the changed ticket ids grouped by booth, for socket emits after commit. Call inside tx().
+ */
+export function refreshVip(userId: number, weddingId: number): Map<number, number[]> {
+  const { passes, passEvents } = passesForUser(userId, weddingId);
+  const queued = all<TicketRow>(
+    `SELECT t.* FROM tickets t JOIN events e ON e.id = t.event_id
+     WHERE t.user_id = ? AND e.wedding_id = ? AND t.status IN ('waiting','away')`, userId, weddingId);
+  const changed = new Map<number, number[]>();
+  for (const t of queued) {
+    const vip = isFamilyFor(userId, t.event_id, passes, passEvents) ? 1 : 0;
+    if (Number(t.is_vip) === vip) continue;
+    run(`UPDATE tickets SET is_vip = ? WHERE id = ?`, vip, t.id);
+    changed.set(t.booth_id, [...(changed.get(t.booth_id) ?? []), t.id]);
+  }
+  return changed;
 }
 
 export function hasPresence(userId: number, weddingId: number, now: number): boolean {

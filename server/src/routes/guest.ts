@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { tx } from '../db/db';
 import {
   BoothRow, EventRow, TicketRow, activeTickets, all, boothOptions, boothsForWedding, getBooth, getEvent,
-  getTicket, hasPresence, one, passesForUser, run, applyPatch,
+  getTicket, hasPresence, one, passesForUser, refreshVip, run, applyPatch,
 } from '../db/queries';
 import { requireRole } from '../auth';
 import { HttpError, parse } from '../http';
@@ -168,7 +168,8 @@ guestRouter.post('/tickets/:id/:action(cancel|away|back)', (req, res) => {
 guestRouter.post('/passes/claim', (req, res) => {
   const { userId, weddingId } = req.auth!;
   const { token } = parse(ClaimBody, req.body);
-  tx(() => {
+  const now = Date.now();
+  const changed = tx(() => {
     const pass = one<{ id: number; side: 'bride' | 'groom'; claimed_by_user_id: number | null; revoked_at: number | null }>(
       `SELECT id, side, claimed_by_user_id, revoked_at FROM family_passes WHERE token = ? AND wedding_id = ?`, token, weddingId);
     const other = !!one(
@@ -178,8 +179,10 @@ guestRouter.post('/passes/claim', (req, res) => {
       const r = run(`UPDATE family_passes SET claimed_by_user_id = ? WHERE id = ? AND claimed_by_user_id IS NULL`, userId, pass!.id);
       if (Number(r.changes) === 0) throw new HttpError(409, 'already_claimed', 'This pass was already claimed');
     }
+    return refreshVip(userId, weddingId);
   });
-  res.json({ pass: myPass(userId, weddingId) });
+  res.json({ pass: myPass(userId, weddingId), tickets: myTicketViews(userId, weddingId, now) });
+  for (const [boothId, ids] of changed) emitBoothChanged(boothId, now, ids);
 });
 
 function view(ticketId: number, now: number) {

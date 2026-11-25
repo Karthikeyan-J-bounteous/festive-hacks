@@ -137,11 +137,65 @@ describe('guest routes', () => {
     expect(res.body.error).toBe('pass_invalid');
   });
 
+  it('claiming a pass makes queued tickets VIP; revoking clears it', async () => {
+    const admin = await login('9000000001');
+    const mehendi = (db.prepare(`SELECT id FROM events WHERE type = 'mehendi'`).get() as { id: number }).id;
+    const created = await admin.post('/api/admin/passes').send({ side: 'groom', label: 'Test cousin', eventIds: [mehendi] }).expect(201);
+    const token = created.body.pass.url.replace('/p/', '');
+
+    const guest = await login('9000000109'); // seeded, no pass, waiting at mehendi booths
+    const vipAt = (userPhone: string) => db.prepare(
+      `SELECT t.is_vip FROM tickets t JOIN users u ON u.id = t.user_id
+       WHERE u.phone = ? AND t.event_id = ? AND t.status IN ('waiting','away')`).all(userPhone, mehendi)
+      .map((r) => (r as { is_vip: number }).is_vip);
+    expect(vipAt('9000000109').length).toBeGreaterThan(0);
+    expect(vipAt('9000000109').every((v) => v === 0)).toBe(true);
+
+    const claim = await guest.post('/api/guest/passes/claim').send({ token }).expect(200);
+    expect(claim.body.pass.side).toBe('groom');
+    expect(vipAt('9000000109').every((v) => v === 1)).toBe(true);
+    await guest.post('/api/guest/passes/claim').send({ token }).expect(200); // idempotent
+
+    await admin.post(`/api/admin/passes/${created.body.pass.id}/revoke`).expect(200);
+    expect(vipAt('9000000109').every((v) => v === 0)).toBe(true);
+  });
+
   it('bootstrap returns live events, booths with waits and my tickets', async () => {
     const res = await (await login('9000000100')).get('/api/guest/bootstrap').expect(200);
     expect(res.body.events.map((e: { type: string }) => e.type)).toEqual(['mehendi', 'feast']);
     expect(res.body.booths.length).toBeGreaterThan(0);
     expect(res.body.tickets.some((t: { isVip: boolean }) => t.isVip)).toBe(true);
     expect(res.body.pass.side).toBe('bride');
+  });
+});
+
+describe('admin passes and quotas', () => {
+  it('41st bride pass is rejected; revoking one frees the slot', async () => {
+    const admin = await login('9000000001');
+    const quotas = (await admin.get('/api/admin/quotas').expect(200)).body.quotas;
+    const sangeet = quotas.find((q: { type: string }) => q.type === 'sangeet') ?? quotas[0];
+    expect(sangeet.bride.max).toBe(40);
+    const make = (i: number) => admin.post('/api/admin/passes').send({ side: 'bride', label: `Aunty ${i}`, eventIds: [sangeet.eventId] });
+
+    let last;
+    for (let i = sangeet.bride.used; i < 40; i++) last = await make(i).expect(201);
+    const over = await make(41);
+    expect(over.status).toBe(409);
+    expect(over.body.error).toBe('quota_exceeded');
+    expect((await admin.get('/api/admin/quotas')).body.quotas
+      .find((q: { eventId: number }) => q.eventId === sangeet.eventId).bride.used).toBe(40);
+
+    await admin.post(`/api/admin/passes/${last!.body.pass.id}/revoke`).expect(200);
+    await make(42).expect(201);
+  });
+
+  it('PUT quotas updates max; guests cannot manage passes', async () => {
+    const admin = await login('9000000001');
+    const [first] = (await admin.get('/api/admin/quotas')).body.quotas;
+    const res = await admin.put('/api/admin/quotas').send({ quotas: [{ eventId: first.eventId, side: 'groom', max: 30 }] }).expect(200);
+    expect(res.body.quotas[0].groom.max).toBe(30);
+    const guest = await login('9000000105');
+    expect((await guest.get('/api/admin/passes')).status).toBe(403);
+    expect((await guest.post('/api/admin/passes').send({ side: 'bride', label: 'x', eventIds: [first.eventId] })).status).toBe(403);
   });
 });
