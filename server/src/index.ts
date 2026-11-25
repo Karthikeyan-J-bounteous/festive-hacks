@@ -5,6 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { db } from './db/db';
 import { seedIfEmpty } from './db/seed';
+import { errorHandler } from './http';
+import { authRouter } from './routes/auth';
+import { guestRouter } from './routes/guest';
+import { boothRouter } from './routes/booth';
 
 if (seedIfEmpty()) console.log('Seeded empty database.');
 
@@ -16,6 +20,14 @@ app.get('/api/health', (_req, res) => {
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM weddings').get() as { n: number };
   res.json({ ok: true, weddings: n });
 });
+
+app.use('/api', authRouter);
+app.use('/api/guest', guestRouter);
+app.use('/api/booth', boothRouter);
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'not_found', message: 'No such API route' });
+});
+app.use(errorHandler);
 
 // Production: serve the built Angular app from the same service.
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist', 'web', 'browser');
