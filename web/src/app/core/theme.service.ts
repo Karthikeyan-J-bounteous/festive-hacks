@@ -18,6 +18,10 @@ export class ThemeService {
     s.setProperty('--display-font', t.font);
     document.body.classList.toggle('theme-dark', t.dark);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.bg);
+    // First paint snaps to the theme; later changes cross-fade (styles.css `body.theme-ready`).
+    if (!document.body.classList.contains('theme-ready')) {
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('theme-ready')));
+    }
     this.current.set(type);
     return t;
   }

@@ -8,7 +8,7 @@ import { ThemeService } from '../core/theme.service';
 import { themeFor } from '../core/themes';
 import { Toast } from '../core/toast';
 import { session } from '../shared/motion';
-import { VenueMap, boothPin } from '../shared/venue-map';
+import { VenueMap, WAIT_BG, boothPin } from '../shared/venue-map';
 import { BoothSheet } from './booth-sheet';
 import { Splash } from './splash';
 import { Takeover } from './takeover';
@@ -31,75 +31,84 @@ const ENDED_TEXT: Record<string, string> = {
                   [kind]="splashKind()" (done)="endSplash()" />
     }
 
-    <div class="themed mx-auto flex min-h-dvh max-w-lg flex-col gap-4 px-4 pb-10 pt-4">
+    <div class="festoon" aria-hidden="true"></div>
+    <div class="themed mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-4 pb-12 pt-3">
       <header class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-xs uppercase tracking-widest opacity-75">Varisai</p>
-          <h1 class="font-display text-2xl text-primary">{{ boot()?.wedding?.couple_names ?? '…' }}</h1>
+        <div class="min-w-0">
+          <p class="eyebrow">Varisai</p>
+          <h1 class="font-display truncate text-3xl leading-tight text-primary">{{ boot()?.wedding?.couple_names ?? '…' }}</h1>
         </div>
         @if (boot()?.pass; as pass) {
-          <span class="rounded-full bg-gold px-3 py-1 text-xs font-bold text-white" [title]="pass.label">★ Family pass</span>
+          <span class="gold-badge shrink-0" [title]="pass.label">★ Family pass</span>
         }
       </header>
 
       @if (loadError()) {
-        <p class="rounded-xl bg-surface p-4" role="alert">{{ loadError() }}
-          <button class="ml-2 underline" (click)="load()">Retry</button></p>
+        <p class="card flex items-center justify-between gap-3 p-4" role="alert">
+          <span>{{ loadError() }}</span>
+          <button class="btn btn-soft btn-sm" (click)="load()">Retry</button></p>
       }
 
       @if (boot() && !boot()!.presence.valid) {
-        <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="presence-title">
-          <h2 id="presence-title" class="font-semibold">Are you at the venue?</h2>
-          <p class="mt-1 text-sm opacity-80">We check once so only guests in the hall can join queues.</p>
-          <button class="mt-3 w-full rounded-xl bg-primary px-4 py-3 font-bold text-on-primary disabled:opacity-60"
-                  [disabled]="presenceBusy()" (click)="useLocation()">
-            {{ presenceBusy() ? 'Checking…' : 'Allow location' }}
-          </button>
-          <form class="mt-3 flex gap-2" (ngSubmit)="useCode()">
-            <label class="sr-only" for="venue-code">4-digit code on the venue screen</label>
-            <input id="venue-code" name="code" inputmode="numeric" maxlength="8" [(ngModel)]="code"
-                   placeholder="Enter the 4-digit code on the venue screen"
-                   class="min-w-0 flex-1 rounded-xl border border-text/20 bg-bg px-3 py-2 text-sm" />
-            <button class="rounded-xl border-2 border-primary px-4 py-2 text-sm font-bold text-primary"
-                    [disabled]="presenceBusy() || code.trim().length < 4">Verify</button>
-          </form>
+        <section class="card overflow-hidden" aria-labelledby="presence-title">
+          <div class="flex items-start gap-3 bg-tint p-4">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-lg text-on-primary" aria-hidden="true">📍</span>
+            <div>
+              <h2 id="presence-title" class="font-bold">Are you at the venue?</h2>
+              <p class="mt-0.5 text-sm opacity-80">We check once so only guests in the hall can join queues.</p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-3 p-4">
+            <button class="btn btn-primary w-full" [disabled]="presenceBusy()" (click)="useLocation()">
+              {{ presenceBusy() ? 'Checking…' : 'Allow location' }}
+            </button>
+            <div class="flex items-center gap-3 text-xs opacity-70" aria-hidden="true">
+              <span class="h-px flex-1 bg-line"></span>or<span class="h-px flex-1 bg-line"></span>
+            </div>
+            <form class="flex gap-2" (ngSubmit)="useCode()">
+              <label class="sr-only" for="venue-code">4-digit code on the venue screen</label>
+              <input id="venue-code" name="code" inputmode="numeric" maxlength="8" [(ngModel)]="code"
+                     placeholder="Code on the venue screen"
+                     class="input min-w-0 flex-1 text-center font-mono tracking-[0.3em]" />
+              <button class="btn btn-outline" [disabled]="presenceBusy() || code.trim().length < 4">Verify</button>
+            </form>
+          </div>
         </section>
       }
 
       @if (events().length > 1) {
-        <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Live events">
+        <nav class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label="Live events">
           @for (e of events(); track e.id) {
-            <button
-              class="shrink-0 rounded-full border-2 px-4 py-1.5 text-sm font-semibold"
-              [class]="e.id === currentEvent()?.id ? 'border-primary bg-primary text-on-primary' : 'border-text/20'"
-              [attr.aria-pressed]="e.id === currentEvent()?.id" (click)="selectEvent(e.id)">
+            <button class="chip" [attr.aria-pressed]="e.id === currentEvent()?.id" (click)="selectEvent(e.id)">
               {{ e.name }}
-              @if (ticketCount(e.id); as n) { <span class="ml-1 opacity-80">· {{ n }}</span> }
+              @if (ticketCount(e.id); as n) {
+                <span class="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs text-white">{{ n }}</span>
+              }
             </button>
           }
         </nav>
       } @else if (currentEvent(); as e) {
-        <p class="font-display text-xl">{{ e.name }} <span class="text-sm font-sans opacity-75">is on now</span></p>
+        <p class="flex items-baseline gap-2">
+          <span class="font-display text-2xl">{{ e.name }}</span>
+          <span class="inline-flex items-center gap-1.5 text-sm opacity-80">
+            <span class="h-2 w-2 animate-pulse rounded-full bg-wait-green" aria-hidden="true"></span>on now</span>
+        </p>
       }
 
       @if (boot() && events().length === 0) {
-        <p class="rounded-2xl bg-surface p-6 text-center">No event is live right now. We'll update this screen when one starts.</p>
-      }
-
-      @if (currentEvent()) {
-        <section aria-label="Venue map">
-          <app-venue-map [pins]="pins()" [dimUnused]="true" [selectedId]="selected()?.id ?? null"
-                         (boothClick)="selectedId.set($event)" />
-          <p class="mt-2 text-center text-xs opacity-75">Tap a booth to see the wait and join.</p>
-        </section>
+        <div class="card flex flex-col items-center gap-2 p-8 text-center">
+          <span class="text-4xl" aria-hidden="true">🪔</span>
+          <p class="font-display text-xl text-primary">Nothing is live yet</p>
+          <p class="text-sm opacity-80">We'll update this screen the moment the next event starts.</p>
+        </div>
       }
 
       @if (myTickets().length) {
-        <section aria-label="Your queues">
-          <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide opacity-80">Your queues ({{ myTickets().length }}/3)</h2>
-          <div class="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2">
+        <section aria-labelledby="tray-title">
+          <h2 id="tray-title" class="eyebrow mb-2">Your queues · {{ myTickets().length }}/3</h2>
+          <div class="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3">
             @for (t of myTickets(); track t.id) {
-              <app-ticket-card class="w-64 shrink-0 snap-start" [ticket]="t" [isBatch]="boothOf(t)?.mode === 'batch'"
+              <app-ticket-card class="w-68 shrink-0 snap-start" [ticket]="t" [isBatch]="boothOf(t)?.mode === 'batch'"
                                [note]="notes()[t.id] ?? ''" [busy]="busyId() === t.id" (act)="act(t, $event)" />
             }
           </div>
@@ -107,17 +116,31 @@ const ENDED_TEXT: Record<string, string> = {
       }
 
       @if (currentEvent()) {
-        <ul class="flex flex-col gap-2" aria-label="Booths">
-          @for (b of eventBooths(); track b.id) {
-            <li>
-              <button class="flex w-full items-center justify-between rounded-xl bg-surface px-4 py-3 text-left shadow-sm"
-                      (click)="selectedId.set(b.id)">
-                <span class="font-medium">{{ b.name }}</span>
-                <span class="text-sm">{{ b.paused ? 'Paused' : '~' + b.waitMin + ' min' }} · {{ b.waiting }} waiting</span>
-              </button>
-            </li>
-          }
-        </ul>
+        <section class="card p-2" aria-label="Venue map">
+          <app-venue-map [pins]="pins()" [dimUnused]="true" [selectedId]="selected()?.id ?? null"
+                         (boothClick)="selectedId.set($event)" />
+          <p class="py-1.5 text-center text-xs opacity-75">Tap a booth to see the wait and join</p>
+        </section>
+
+        <section aria-labelledby="booths-title">
+          <h2 id="booths-title" class="eyebrow mb-2">Booths</h2>
+          <ul class="card flex flex-col divide-y divide-line overflow-hidden">
+            @for (b of eventBooths(); track b.id) {
+              <li>
+                <button class="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-tint"
+                        (click)="selectedId.set(b.id)">
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate font-semibold">{{ b.name }}</span>
+                    <span class="block text-xs opacity-75">{{ b.waiting }} waiting
+                      @if (ticketAt(b.id); as t) { · <strong class="text-primary">you're {{ t.code }}</strong> }</span>
+                  </span>
+                  <span class="wait-pill" [class]="waitBg[b.colour]">{{ b.paused ? 'Paused' : '~' + b.waitMin + ' min' }}</span>
+                  <span class="text-lg opacity-40" aria-hidden="true">›</span>
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
       }
     </div>
 
@@ -143,6 +166,7 @@ export class GuestPage implements OnInit {
 
   protected readonly boot = signal<Bootstrap | null>(null);
   protected readonly loadError = signal('');
+  protected readonly waitBg = WAIT_BG;
   protected readonly splash = signal(session.get('varisai.splash') !== '1');
   protected readonly eventId = signal<number | null>(null);
   protected readonly selectedId = signal<number | null>(null);

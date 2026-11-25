@@ -22,59 +22,63 @@ interface Draft { id: number | null; type: string; name: string; startsAt: strin
   imports: [FormsModule],
   template: `
     <div class="flex items-center justify-between">
-      <h2 class="text-xl font-semibold">Events</h2>
-      <button class="rounded-xl bg-primary px-4 py-2 font-semibold text-on-primary" (click)="startNew()">Add event</button>
+      <h2 class="text-xl font-bold">Events</h2>
+      <button class="btn btn-primary" (click)="startNew()">+ Add event</button>
     </div>
 
     @if (draft(); as d) {
-      <form class="grid gap-3 rounded-2xl bg-surface p-4 shadow-sm md:grid-cols-5" (ngSubmit)="save(d)">
-        <label class="flex flex-col gap-1 text-sm md:col-span-2">Name
-          <input name="name" required maxlength="80" [(ngModel)]="d.name" class="rounded-lg border border-text/20 bg-bg px-3 py-2" /></label>
-        <label class="flex flex-col gap-1 text-sm">Theme
-          <select name="type" [(ngModel)]="d.type" class="rounded-lg border border-text/20 bg-bg px-3 py-2">
+      <form class="card grid gap-3 p-5 md:grid-cols-5" (ngSubmit)="save(d)">
+        <h3 class="font-bold md:col-span-5">{{ d.id ? 'Edit event' : 'New event' }}</h3>
+        <label class="label flex flex-col gap-1.5 md:col-span-2">Name
+          <input name="name" required maxlength="80" [(ngModel)]="d.name" class="input font-normal" /></label>
+        <label class="label flex flex-col gap-1.5">Theme
+          <select name="type" [(ngModel)]="d.type" class="input font-normal capitalize">
             @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
           </select></label>
-        <label class="flex flex-col gap-1 text-sm">Starts
-          <input name="startsAt" type="datetime-local" required [(ngModel)]="d.startsAt" class="rounded-lg border border-text/20 bg-bg px-3 py-2" /></label>
-        <label class="flex flex-col gap-1 text-sm">Ends
-          <input name="endsAt" type="datetime-local" required [(ngModel)]="d.endsAt" class="rounded-lg border border-text/20 bg-bg px-3 py-2" /></label>
+        <label class="label flex flex-col gap-1.5">Starts
+          <input name="startsAt" type="datetime-local" required [(ngModel)]="d.startsAt" class="input font-normal" /></label>
+        <label class="label flex flex-col gap-1.5">Ends
+          <input name="endsAt" type="datetime-local" required [(ngModel)]="d.endsAt" class="input font-normal" /></label>
         <div class="flex gap-2 md:col-span-5">
-          <button class="rounded-xl bg-primary px-4 py-2 font-semibold text-on-primary" [disabled]="busy()">
-            {{ d.id ? 'Save changes' : 'Create event' }}</button>
-          <button type="button" class="rounded-xl px-4 py-2 underline" (click)="draft.set(null)">Cancel</button>
+          <button class="btn btn-primary" [disabled]="busy()">{{ d.id ? 'Save changes' : 'Create event' }}</button>
+          <button type="button" class="btn btn-soft" (click)="draft.set(null)">Cancel</button>
         </div>
       </form>
     }
 
     <ul class="grid gap-4 md:grid-cols-2">
       @for (e of events(); track e.id) {
-        <li class="overflow-hidden rounded-2xl bg-surface shadow-sm">
-          <div class="h-3" [style.background]="theme(e.type).primary"></div>
+        <li class="card overflow-hidden" [class.ring-2]="e.live" [class.ring-wait-green]="e.live">
+          <!-- Theme preview strip -->
+          <div class="relative flex h-24 items-end justify-between p-4"
+               [style.background]="'linear-gradient(135deg,' + theme(e.type).primary + ',' + theme(e.type).accent + ')'">
+            <span class="absolute inset-0 bg-gradient-to-t from-black/55 to-black/0" aria-hidden="true"></span>
+            <h3 class="relative text-2xl font-bold leading-tight text-white drop-shadow"
+                [style.font-family]="theme(e.type).font">{{ e.name }}</h3>
+            <span class="relative rounded-full px-3 py-1 text-xs font-bold shadow-sm"
+                  [class]="e.live ? 'bg-wait-green text-white' : e.ended ? 'bg-black/55 text-white' : 'bg-white/90 text-black'">
+              @if (e.live) { <span class="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white align-middle"></span> }
+              {{ e.live ? 'LIVE' : e.ended ? 'Ended' : 'Upcoming' }}</span>
+          </div>
           <div class="flex flex-col gap-3 p-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3 class="text-xl font-bold" [style.font-family]="theme(e.type).font">{{ e.name }}</h3>
-                <p class="text-sm opacity-80">{{ when(e) }}</p>
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm opacity-80">{{ when(e) }}</p>
+              <div class="flex -space-x-1.5" aria-hidden="true">
+                @for (c of swatches(e.type); track $index) {
+                  <span class="h-6 w-6 rounded-full border-2 border-surface shadow-sm" [style.background]="c"></span>
+                }
               </div>
-              <span class="rounded-full px-3 py-1 text-xs font-bold"
-                    [class]="e.live ? 'bg-wait-green text-white' : e.ended ? 'bg-text/15' : 'bg-bg'">
-                {{ e.live ? 'LIVE' : e.ended ? 'Ended' : 'Upcoming' }}</span>
-            </div>
-            <div class="flex gap-1.5" aria-hidden="true">
-              @for (c of swatches(e.type); track $index) {
-                <span class="h-6 w-6 rounded-full border border-text/15" [style.background]="c"></span>
-              }
             </div>
             <div class="flex flex-wrap items-center gap-2">
-              <div class="inline-flex overflow-hidden rounded-xl border border-text/20" role="group" [attr.aria-label]="'Status of ' + e.name">
+              <div class="inline-flex rounded-xl bg-tint p-1" role="group" [attr.aria-label]="'Status of ' + e.name">
                 @for (o of overrides; track o.value) {
-                  <button class="px-3 py-1.5 text-sm font-semibold"
-                          [class]="e.override === o.value ? 'bg-primary text-on-primary' : ''"
+                  <button class="rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors"
+                          [class]="e.override === o.value ? 'bg-primary text-on-primary shadow-sm' : 'hover:bg-surface'"
                           [attr.aria-pressed]="e.override === o.value" [disabled]="busy()" (click)="setOverride(e, o.value)">
                     {{ o.label }}</button>
                 }
               </div>
-              <button class="ml-auto text-sm underline" (click)="edit(e)">Edit</button>
+              <button class="btn btn-soft btn-sm ml-auto" (click)="edit(e)">Edit</button>
             </div>
           </div>
         </li>

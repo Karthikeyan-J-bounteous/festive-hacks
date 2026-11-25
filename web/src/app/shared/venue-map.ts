@@ -23,43 +23,68 @@ export interface MapPin {
 }
 
 const FILL: Record<WaitColour, string> = { green: '#1f7a3a', amber: '#b45309', red: '#b91c1c', grey: '#6b7280' };
+/** Literal Tailwind classes for wait colours (so Tailwind generates them). */
+export const WAIT_BG: Record<WaitColour, string> = {
+  green: 'bg-wait-green', amber: 'bg-wait-amber', red: 'bg-wait-red', grey: 'bg-wait-grey',
+};
 const W = 1000;
 const H = 700;
 
 @Component({
   selector: 'app-venue-map',
+  styles: `
+    .zone { fill: color-mix(in oklab, var(--primary) 6%, var(--surface)); stroke: color-mix(in oklab, var(--primary) 38%, transparent); }
+    .zone-stage { fill: color-mix(in oklab, var(--accent) 16%, var(--surface)); stroke: color-mix(in oklab, var(--accent) 55%, transparent); }
+    .zone-parking { fill: transparent; }
+    .zone-label { fill: var(--text); fill-opacity: 0.7; font-size: 21px; font-weight: 700; letter-spacing: 0.02em; }
+    .dots { fill: color-mix(in oklab, var(--text) 9%, transparent); }
+    .pin { transition: transform 0.18s ease; transform-box: fill-box; transform-origin: center; }
+    .pin-g:hover .pin, .pin-g:focus-visible .pin { transform: scale(1.08); }
+    .pin-g:focus { outline: none; }
+    .pin-g:focus-visible .pin-ring { stroke: var(--text); stroke-width: 4; }
+    .pin-name { fill: var(--text); font-size: 28px; font-weight: 700; paint-order: stroke; stroke: var(--surface); stroke-width: 7px; stroke-linejoin: round; }
+  `,
   template: `
     <svg
       #svg viewBox="0 0 1000 700" class="themed block h-auto w-full select-none"
       [class.cursor-crosshair]="placing()"
       role="img" [attr.aria-label]="'Venue map with ' + pins().length + ' booths'"
       (click)="onMapClick($event)">
+      <defs>
+        <pattern id="vm-dots" width="24" height="24" patternUnits="userSpaceOnUse">
+          <circle cx="2" cy="2" r="1.6" class="dots" />
+        </pattern>
+        <filter id="vm-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.28" />
+        </filter>
+      </defs>
       <rect x="0" y="0" width="1000" height="700" rx="24" fill="var(--surface)" />
+      <rect x="0" y="0" width="1000" height="700" rx="24" fill="url(#vm-dots)" />
       @for (z of zones; track z.id) {
-        <g [attr.opacity]="dimmed().has(z.id) ? 0.35 : 1">
+        <g class="transition-opacity duration-300" [attr.opacity]="dimmed().has(z.id) ? 0.4 : 1">
           <rect
-            [attr.x]="z.x" [attr.y]="z.y" [attr.width]="z.w" [attr.height]="z.h" rx="14"
-            fill="var(--bg)" stroke="var(--primary)" stroke-opacity="0.45" stroke-width="2"
-            [attr.stroke-dasharray]="z.id === 'parking' ? '10 8' : null" />
-          <text
-            [attr.x]="z.x + 14" [attr.y]="z.y + (z.id === 'stage' ? 42 : 30)"
-            fill="var(--text)" fill-opacity="0.75" font-size="20" font-weight="600">{{ z.name }}</text>
+            [attr.x]="z.x" [attr.y]="z.y" [attr.width]="z.w" [attr.height]="z.h" rx="16"
+            class="zone" [class.zone-stage]="z.id === 'stage'" [class.zone-parking]="z.id === 'parking'"
+            stroke-width="2" [attr.stroke-dasharray]="z.id === 'parking' ? '10 8' : null" />
+          <text class="zone-label" [attr.x]="z.x + 16" [attr.y]="z.y + (z.id === 'stage' ? 42 : 32)">{{ z.name }}</text>
         </g>
       }
       @for (p of pins(); track p.id) {
         <g
-          class="cursor-pointer" role="button" tabindex="0"
+          class="pin-g cursor-pointer" role="button" tabindex="0"
           [attr.aria-label]="p.name + ', ' + p.label"
           [attr.aria-pressed]="p.id === selectedId()"
           [attr.transform]="'translate(' + (p.x * 10) + ' ' + (p.y * 7) + ')'"
           (click)="pick(p.id, $event)" (keydown.enter)="pick(p.id, $event)" (keydown.space)="pick(p.id, $event)">
           @if (p.id === selectedId()) {
-            <circle r="46" fill="none" stroke="var(--accent)" stroke-width="6" />
+            <circle class="pin-pulse" r="40" fill="none" stroke="var(--accent)" stroke-width="5" />
+            <circle r="47" fill="none" stroke="var(--accent)" stroke-width="6" />
           }
-          <circle r="36" [attr.fill]="fill[p.colour]" stroke="#fff" stroke-width="5" />
-          <text text-anchor="middle" dy="9" fill="#fff" font-size="26" font-weight="700">{{ p.label }}</text>
-          <text text-anchor="middle" y="68" fill="var(--text)" font-size="26" font-weight="700"
-                paint-order="stroke" stroke="var(--bg)" stroke-width="6">{{ p.name }}</text>
+          <g class="pin">
+            <circle class="pin-ring" r="36" [attr.fill]="fill[p.colour]" stroke="#fff" stroke-width="5" filter="url(#vm-shadow)" />
+            <text text-anchor="middle" dy="9" fill="#fff" font-size="25" font-weight="800">{{ p.label }}</text>
+          </g>
+          <text class="pin-name" text-anchor="middle" y="72">{{ p.name }}</text>
         </g>
       }
     </svg>

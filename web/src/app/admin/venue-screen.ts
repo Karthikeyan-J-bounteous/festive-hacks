@@ -16,14 +16,20 @@ const RING = 2 * Math.PI * 54;
 /** Fullscreen dark venue screen: rotating QR + 4-digit code + 30-s ring + Now serving (SPEC-LITE §8). */
 @Component({
   selector: 'app-venue-screen',
-  host: { class: 'fixed inset-0 overflow-auto bg-[#0E0A14] text-white' },
+  host: {
+    class: 'fixed inset-0 overflow-auto bg-[#0E0A14] text-white ' +
+      'bg-[radial-gradient(60rem_40rem_at_15%_10%,rgb(255_209_102/0.14),transparent_60%),radial-gradient(50rem_40rem_at_95%_90%,rgb(255_62_165/0.12),transparent_60%)]',
+  },
   template: `
-    <div class="mx-auto flex min-h-full max-w-6xl flex-col gap-8 p-8 lg:flex-row lg:items-center">
+    <div class="h-3 bg-[radial-gradient(circle_at_50%_0,#FFD166_5px,transparent_5.5px)] bg-[length:22px_12px] bg-repeat-x opacity-80" aria-hidden="true"></div>
+    <div class="mx-auto flex min-h-[calc(100%-0.75rem)] max-w-6xl flex-col gap-10 p-8 lg:flex-row lg:items-center">
       <section class="flex flex-1 flex-col items-center gap-6 text-center" aria-labelledby="venue-title">
-        <p class="text-lg uppercase tracking-[0.3em] text-white/75">{{ wedding()?.coupleNames ?? 'Varisai' }}</p>
-        <h1 id="venue-title" class="text-4xl font-bold">Scan to join the queues</h1>
+        <p class="text-lg uppercase tracking-[0.35em] text-[#FFD166]">{{ wedding()?.coupleNames ?? 'Varisai' }}</p>
+        <h1 id="venue-title" class="text-5xl font-bold tracking-tight">Scan to join the queues</h1>
         @if (qr()) {
-          <img [src]="qr()" alt="Venue QR code: scan with your phone camera" class="h-72 w-72 rounded-3xl bg-white p-4 md:h-80 md:w-80" />
+          <div class="rounded-[2rem] bg-[linear-gradient(135deg,#FFD166,#FF3EA5)] p-1.5 shadow-[0_30px_80px_-20px_rgb(255_209_102/0.45)]">
+            <img [src]="qr()" alt="Venue QR code: scan with your phone camera" class="h-72 w-72 rounded-[1.6rem] bg-white p-4 md:h-80 md:w-80" />
+          </div>
         }
         <div class="flex items-center gap-6">
           <svg viewBox="0 0 120 120" class="h-28 w-28 -rotate-90" aria-hidden="true">
@@ -41,12 +47,15 @@ const RING = 2 * Math.PI * 54;
       </section>
 
       <section class="flex-1" aria-labelledby="serving-title">
-        <h2 id="serving-title" class="mb-4 text-2xl font-bold">Now serving</h2>
+        <h2 id="serving-title" class="mb-4 flex items-center gap-3 text-3xl font-bold">
+          <span class="h-3 w-3 animate-pulse rounded-full bg-[#FFD166]" aria-hidden="true"></span>Now serving</h2>
         <ul class="grid gap-3 sm:grid-cols-2">
           @for (b of data()?.nowServing ?? []; track b.boothId) {
-            <li class="rounded-2xl bg-white/10 p-4">
-              <p class="text-white/80">{{ b.name }}</p>
-              <p class="mt-1 font-mono text-3xl font-bold text-[#FFD166]">{{ b.codes.length ? b.codes.join('  ') : '—' }}</p>
+            <li class="rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur">
+              <p class="text-sm font-semibold uppercase tracking-[0.18em] text-white/75">{{ b.name }}</p>
+              <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-3xl font-bold text-[#FFD166]">
+                @for (c of b.codes; track c) { <span class="whitespace-nowrap">{{ c }}</span> } @empty { <span>—</span> }
+              </p>
             </li>
           } @empty {
             <li class="text-white/75">No booth is open right now.</li>

@@ -12,28 +12,27 @@ const STATUS_TEXT: Record<string, string> = { called: 'Called', serving: 'Servin
 @Component({
   selector: 'app-booth-console',
   template: `
-    <div class="mx-auto flex min-h-dvh max-w-lg flex-col gap-4 px-4 pb-10 pt-4">
-      <header class="flex items-center justify-between">
-        <div>
-          <p class="text-xs uppercase tracking-widest opacity-75">Varisai · Booth</p>
-          <h1 class="font-display text-2xl text-primary">{{ booth()?.name ?? 'Your booths' }}</h1>
+    <div class="festoon" aria-hidden="true"></div>
+    <div class="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-4 pb-12 pt-3">
+      <header class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="eyebrow">Varisai · Booth</p>
+          <h1 class="font-display truncate text-3xl leading-tight text-primary">{{ booth()?.name ?? 'Your booths' }}</h1>
         </div>
         @if (booth(); as b) {
           <button
-            class="rounded-full border-2 px-4 py-2 text-sm font-bold"
-            [class]="b.paused ? 'border-text bg-text text-bg' : 'border-text/25'"
+            class="btn btn-sm shrink-0 rounded-full border-2"
+            [class]="b.paused ? 'border-wait-amber bg-wait-amber text-white' : 'border-line bg-surface'"
             [attr.aria-pressed]="b.paused" [disabled]="busy()" (click)="pause(b)">
-            {{ b.paused ? 'Paused · Resume' : 'Pause' }}
+            {{ b.paused ? '▶ Resume' : '❚❚ Pause' }}
           </button>
         }
       </header>
 
       @if (booths().length > 1) {
-        <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Your booths">
+        <nav class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label="Your booths">
           @for (b of booths(); track b.id) {
-            <button class="shrink-0 rounded-full border-2 px-4 py-1.5 text-sm font-semibold"
-                    [class]="b.id === booth()?.id ? 'border-primary bg-primary text-on-primary' : 'border-text/20'"
-                    [attr.aria-pressed]="b.id === booth()?.id" (click)="pick(b.id)">
+            <button class="chip" [attr.aria-pressed]="b.id === booth()?.id" (click)="pick(b.id)">
               {{ b.name }} <span class="opacity-80">· {{ b.waiting }}</span>
             </button>
           }
@@ -41,89 +40,113 @@ const STATUS_TEXT: Record<string, string> = { called: 'Called', serving: 'Servin
       }
 
       @if (loaded() && booths().length === 0) {
-        <p class="rounded-2xl bg-surface p-6 text-center">No booths are assigned to you yet. Ask the organiser.</p>
+        <div class="card flex flex-col items-center gap-2 p-8 text-center">
+          <span class="text-4xl" aria-hidden="true">🪔</span>
+          <p class="font-semibold">No booths are assigned to you yet.</p>
+          <p class="text-sm opacity-80">Ask the organiser to add your phone number.</p>
+        </div>
       }
 
       @if (booth(); as b) {
-        <p class="text-sm opacity-80">
-          {{ b.waiting }} waiting · ~{{ b.waitMin }} min for a new guest
-          @if (b.mode === 'live') { · {{ b.artists }} {{ b.artists === 1 ? 'artist' : 'artists' }} }
-        </p>
+        <dl class="grid grid-cols-3 gap-2 text-center">
+          <div class="card px-2 py-3">
+            <dt class="eyebrow">Waiting</dt>
+            <dd class="mt-0.5 text-2xl font-bold tabular-nums">{{ b.waiting }}</dd>
+          </div>
+          <div class="card px-2 py-3">
+            <dt class="eyebrow">New guest</dt>
+            <dd class="mt-0.5 text-2xl font-bold tabular-nums">~{{ b.waitMin }}<span class="text-sm font-semibold"> min</span></dd>
+          </div>
+          <div class="card px-2 py-3">
+            <dt class="eyebrow">{{ b.mode === 'live' ? 'Artists' : 'Seats' }}</dt>
+            <dd class="mt-0.5 text-2xl font-bold tabular-nums">{{ b.mode === 'live' ? b.artists : b.roundSeats }}</dd>
+          </div>
+        </dl>
+        @if (b.paused) {
+          <p class="rounded-xl bg-wait-amber px-4 py-2 text-center text-sm font-semibold text-white" role="status">
+            Paused: guests can't join right now.</p>
+        }
 
         @if (b.mode === 'live') {
           <section aria-labelledby="now-title" class="flex flex-col gap-3">
-            <h2 id="now-title" class="text-sm font-semibold uppercase tracking-wide opacity-80">Now serving</h2>
+            <h2 id="now-title" class="eyebrow">Now serving</h2>
             @for (t of inProgress(); track t.id) {
-              <article class="rounded-2xl border-2 border-primary bg-surface p-5 shadow">
-                <div class="flex items-baseline justify-between">
-                  <p class="font-display text-5xl text-primary">{{ t.code }}</p>
-                  <p class="text-2xl font-bold tabular-nums" aria-label="Time since called">{{ timer(t) }}</p>
+              <article class="card overflow-hidden border-2 border-primary">
+                <div class="flex items-center justify-between bg-tint px-5 py-4">
+                  <p class="font-display text-6xl leading-none text-primary">{{ t.code }}</p>
+                  <div class="text-right">
+                    <p class="text-3xl font-bold tabular-nums" aria-label="Time since called">{{ timer(t) }}</p>
+                    <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold"
+                          [class]="t.status === 'called' ? 'bg-accent text-white' : 'bg-primary text-on-primary'">{{ statusText[t.status] }}</span>
+                  </div>
                 </div>
-                <p class="mt-1">{{ t.guestName ?? 'Guest' }} · {{ t.option }}
-                  @if (t.partySize > 1) { · {{ t.partySize }} people }
-                  @if (t.isVip) { · ★ Family }</p>
-                <p class="text-sm opacity-80">{{ statusText[t.status] }}
-                  @if (t.skipCount) { · skipped once before }</p>
-                <div class="mt-4 grid grid-cols-2 gap-2">
-                  @if (t.status === 'called') {
-                    <button class="rounded-xl bg-primary py-3 text-lg font-bold text-on-primary" [disabled]="busy()"
-                            (click)="ticketAction(t, 'start')">Start</button>
-                    <button class="rounded-xl border-2 border-text/30 py-3 text-lg font-bold" [disabled]="busy()"
-                            (click)="ticketAction(t, 'skip')">Skip</button>
-                  } @else {
-                    <button class="col-span-2 rounded-xl bg-primary py-3 text-lg font-bold text-on-primary" [disabled]="busy()"
-                            (click)="ticketAction(t, 'done')">Done</button>
-                  }
+                <div class="px-5 pb-5 pt-3">
+                  <p class="font-semibold">{{ t.guestName ?? 'Guest' }}
+                    @if (t.isVip) { <span class="gold-badge ml-1 align-middle">★ Family</span> }</p>
+                  <p class="text-sm opacity-80">{{ t.option }}
+                    @if (t.partySize > 1) { · {{ t.partySize }} people }
+                    @if (t.skipCount) { · skipped once before }</p>
+                  <div class="mt-4 grid grid-cols-2 gap-2">
+                    @if (t.status === 'called') {
+                      <button class="btn btn-primary btn-lg" [disabled]="busy()" (click)="ticketAction(t, 'start')">Start</button>
+                      <button class="btn btn-soft btn-lg" [disabled]="busy()" (click)="ticketAction(t, 'skip')">Skip</button>
+                    } @else {
+                      <button class="btn btn-primary btn-lg col-span-2" [disabled]="busy()" (click)="ticketAction(t, 'done')">✓ Done</button>
+                    }
+                  </div>
                 </div>
               </article>
             } @empty {
-              <p class="rounded-2xl bg-surface p-5 text-center opacity-80">Nobody at the counter.</p>
+              <p class="card border-dashed p-6 text-center opacity-80">Nobody at the counter.</p>
             }
-            <button class="rounded-2xl bg-primary py-5 text-xl font-bold text-on-primary shadow disabled:opacity-50"
+            <button class="btn btn-primary flex-col rounded-2xl py-5 text-xl"
                     [disabled]="busy() || b.paused || inProgress().length >= b.artists || waiting().length === 0"
                     (click)="callNext(b)">
-              Call next
+              Call next →
               @if (inProgress().length >= b.artists && waiting().length) {
                 <span class="block text-sm font-medium">every artist is busy</span>
               }
             </button>
           </section>
         } @else {
-          <section aria-labelledby="round-title" class="rounded-2xl bg-surface p-5 shadow-sm">
-            <h2 id="round-title" class="font-semibold">
+          <section aria-labelledby="round-title" class="card p-5">
+            <h2 id="round-title" class="font-display text-2xl text-primary">
               @if (b.round; as r) { Round {{ r.roundNo }} seating } @else { No round seated }
             </h2>
             @if (b.round; as r) {
-              <p class="mt-1 text-sm">{{ r.seatsUsed }} / {{ b.roundSeats }} seats used · {{ (b.roundSeats ?? 0) - r.seatsUsed }} left ·
-                ends in {{ minutesLeft(r.endsAt) }} min</p>
-              <div class="mt-2 h-3 overflow-hidden rounded-full bg-bg" role="progressbar"
+              <div class="mt-3 flex items-baseline justify-between text-sm">
+                <span><strong class="text-2xl tabular-nums">{{ r.seatsUsed }}</strong> / {{ b.roundSeats }} seats · {{ (b.roundSeats ?? 0) - r.seatsUsed }} left</span>
+                <span class="font-semibold">ends in {{ minutesLeft(r.endsAt) }} min</span>
+              </div>
+              <div class="mt-2 h-3.5 overflow-hidden rounded-full bg-tint" role="progressbar"
                    [attr.aria-valuenow]="r.seatsUsed" aria-valuemin="0" [attr.aria-valuemax]="b.roundSeats">
-                <div class="h-full bg-primary" [style.width.%]="(r.seatsUsed / (b.roundSeats || 1)) * 100"></div>
+                <div class="h-full rounded-full bg-[linear-gradient(90deg,var(--primary),var(--accent))] transition-[width] duration-500"
+                     [style.width.%]="(r.seatsUsed / (b.roundSeats || 1)) * 100"></div>
               </div>
             }
-            <p class="mt-3 text-sm">Next round seats up to {{ b.roundSeats }}: families stay together, first come first seated.</p>
-            <button class="mt-4 w-full rounded-xl bg-primary py-4 text-lg font-bold text-on-primary disabled:opacity-50"
+            <p class="mt-3 text-sm opacity-85">Next round seats up to {{ b.roundSeats }}: families stay together, first come first seated.</p>
+            <button class="btn btn-primary btn-lg mt-4 w-full"
                     [disabled]="busy() || (waiting().length === 0 && !b.round)" (click)="nextRound(b)">
-              Start next round
+              Start next round →
             </button>
           </section>
         }
 
         <section aria-labelledby="next-title">
-          <h2 id="next-title" class="mb-2 text-sm font-semibold uppercase tracking-wide opacity-80">
+          <h2 id="next-title" class="eyebrow mb-2">
             {{ b.mode === 'live' ? 'Next 3' : 'Waiting families' }}
           </h2>
-          <ol class="flex flex-col gap-2">
+          <ol class="card flex flex-col divide-y divide-line overflow-hidden">
             @for (t of (b.mode === 'live' ? waiting().slice(0, 3) : waiting()); track t.id; let i = $index) {
-              <li class="flex items-center justify-between rounded-xl bg-surface px-4 py-3 shadow-sm">
-                <span><span class="mr-2 opacity-60">{{ i + 1 }}.</span><strong>{{ t.code }}</strong> · {{ t.guestName ?? 'Guest' }}</span>
-                <span class="text-sm">
-                  @if (t.isVip) { <span class="font-bold text-gold">★</span> }
-                  {{ b.mode === 'live' ? t.option : t.partySize + ' seats' }}
-                </span>
+              <li class="flex items-center gap-3 px-4 py-3">
+                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-tint text-sm font-bold">{{ i + 1 }}</span>
+                <span class="min-w-0 flex-1 truncate"><strong class="font-display text-lg">{{ t.code }}</strong>
+                  <span class="opacity-80"> · {{ t.guestName ?? 'Guest' }}</span></span>
+                @if (t.isVip) { <span class="gold-badge">★</span> }
+                <span class="text-sm opacity-85">{{ b.mode === 'live' ? t.option : t.partySize + ' seats' }}</span>
               </li>
             } @empty {
-              <li class="rounded-xl bg-surface px-4 py-3 text-center opacity-75">The line is empty.</li>
+              <li class="px-4 py-5 text-center opacity-75">The line is empty.</li>
             }
           </ol>
           @if (away().length) {

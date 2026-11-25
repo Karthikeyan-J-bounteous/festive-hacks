@@ -3,7 +3,7 @@ import { Api, errorText } from '../core/api';
 import { AdminEvent, Booth } from '../core/models';
 import { Socket } from '../core/socket';
 import { Toast } from '../core/toast';
-import { VenueMap, boothPin } from '../shared/venue-map';
+import { VenueMap, WAIT_BG, boothPin } from '../shared/venue-map';
 
 interface Overview {
   kpis: {
@@ -26,36 +26,45 @@ interface Overview {
     @if (data(); as d) {
       <section class="grid grid-cols-2 gap-3 md:grid-cols-5" aria-label="Key numbers">
         @for (k of tiles(); track k.label) {
-          <div class="rounded-2xl bg-surface p-4 shadow-sm">
-            <p class="text-sm opacity-75">{{ k.label }}</p>
-            <p class="mt-1 text-3xl font-bold tabular-nums">{{ k.value }}</p>
-            @if (k.sub) { <p class="text-xs opacity-75">{{ k.sub }}</p> }
+          <div class="card relative overflow-hidden p-4 pl-5">
+            <span class="absolute inset-y-3 left-0 w-1 rounded-r-full bg-[linear-gradient(var(--primary),var(--accent))]" aria-hidden="true"></span>
+            <p class="eyebrow">{{ k.label }}</p>
+            <p class="mt-1.5 text-3xl font-bold tabular-nums">{{ k.value }}</p>
+            @if (k.sub) { <p class="mt-0.5 truncate text-xs opacity-75">{{ k.sub }}</p> }
           </div>
         }
       </section>
 
       <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <section aria-labelledby="map-title" class="rounded-2xl bg-surface p-4 shadow-sm">
-          <h2 id="map-title" class="mb-3 font-semibold">Live map
+        <section aria-labelledby="map-title" class="card p-4">
+          <h2 id="map-title" class="mb-3 flex items-center gap-2 font-bold">
+            <span class="h-2 w-2 rounded-full" [class]="liveNames() ? 'animate-pulse bg-wait-green' : 'bg-wait-grey'" aria-hidden="true"></span>
+            Live map
             <span class="text-sm font-normal opacity-75">· {{ liveNames() || 'no event live' }}</span></h2>
           <app-venue-map [pins]="pins()" [dimUnused]="true" />
         </section>
-        <section aria-labelledby="booths-title" class="rounded-2xl bg-surface p-4 shadow-sm">
-          <h2 id="booths-title" class="mb-3 font-semibold">Live booths</h2>
-          <ul class="flex flex-col divide-y divide-text/10">
+        <section aria-labelledby="booths-title" class="card p-4">
+          <h2 id="booths-title" class="mb-2 font-bold">Live booths</h2>
+          <ul class="flex flex-col divide-y divide-line">
             @for (b of d.booths; track b.id) {
-              <li class="flex items-center justify-between py-2 text-sm">
-                <span>{{ b.name }}</span>
-                <span class="tabular-nums">{{ b.paused ? 'Paused' : b.waitMin + ' min' }} · {{ b.waiting }} waiting</span>
+              <li class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span class="min-w-0">
+                  <span class="block truncate font-semibold">{{ b.name }}</span>
+                  <span class="text-xs opacity-75">{{ b.waiting }} waiting</span>
+                </span>
+                <span class="wait-pill shrink-0" [class]="waitBg[b.colour]">{{ b.paused ? 'Paused' : b.waitMin + ' min' }}</span>
               </li>
             } @empty {
-              <li class="py-2 text-sm opacity-75">Nothing is live. Use Events → Go live.</li>
+              <li class="py-6 text-center text-sm opacity-75">Nothing is live. Use Events → Go live now.</li>
             }
           </ul>
         </section>
       </div>
     } @else {
-      <p class="opacity-75">Loading…</p>
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-5" aria-hidden="true">
+        @for (i of [1, 2, 3, 4, 5]; track i) { <div class="card h-24 animate-pulse bg-tint"></div> }
+      </div>
+      <p class="sr-only" role="status">Loading…</p>
     }
   `,
 })
@@ -65,6 +74,7 @@ export class OverviewTab implements OnInit {
   private readonly toast = inject(Toast);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly waitBg = WAIT_BG;
   protected readonly data = signal<Overview | null>(null);
   protected readonly pins = computed(() => (this.data()?.booths ?? []).map(boothPin));
   protected readonly liveNames = computed(() => (this.data()?.events ?? []).filter((e) => e.live).map((e) => e.name).join(', '));

@@ -13,21 +13,24 @@ interface ClaimResult { pass: MyPass | null }
   template: `
     <main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-10 text-center">
       @if (pass(); as p) {
-        <section class="flex flex-col items-center gap-3 rounded-3xl border-4 border-gold bg-surface p-6 shadow" aria-labelledby="pass-title">
-          <p class="text-sm font-bold uppercase tracking-widest text-gold">★ Family pass</p>
-          <h1 id="pass-title" class="font-display text-3xl text-primary">{{ p.label }}</h1>
-          <p>{{ p.side === 'bride' ? "Bride's side" : "Groom's side" }}</p>
+        <section class="relative flex flex-col items-center gap-3 overflow-hidden rounded-[2rem] border-4 border-gold bg-surface p-7 shadow-[var(--shadow-lg)]"
+                 aria-labelledby="pass-title">
+          <div class="festoon absolute inset-x-0 top-0" aria-hidden="true"></div>
+          <span class="gold-badge mt-3 px-4 py-1 text-sm tracking-widest">★ FAMILY PASS</span>
+          <h1 id="pass-title" class="font-display text-4xl leading-tight text-primary">{{ p.label }}</h1>
+          <div class="ornament w-32" aria-hidden="true"><span></span></div>
+          <p class="font-semibold">{{ p.side === 'bride' ? "Bride's side" : "Groom's side" }}</p>
           <p class="text-sm opacity-80">You get the priority lane at every booth for {{ p.eventIds.length }}
             {{ p.eventIds.length === 1 ? 'event' : 'events' }}. Your tickets show a gold badge.</p>
         </section>
-        <a routerLink="/w" class="rounded-xl bg-primary px-4 py-3 text-lg font-bold text-on-primary">Go to the venue map</a>
+        <a routerLink="/w" class="btn btn-primary btn-lg">Go to the venue map →</a>
       } @else {
-        <h1 class="font-display text-3xl text-primary">You've been sent a family pass</h1>
+        <span class="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[linear-gradient(135deg,#a67c0d,#6f5006)] text-4xl text-white shadow-lg" aria-hidden="true">★</span>
+        <h1 class="font-display text-4xl leading-tight text-primary">You've been sent a family pass</h1>
         <p class="opacity-80">Claim it once on this phone. It can't be moved to another number afterwards.</p>
         @if (error()) { <p class="font-medium text-primary" role="alert">{{ error() }}</p> }
-        <button class="rounded-xl bg-primary px-4 py-3 text-lg font-bold text-on-primary disabled:opacity-60"
-                [disabled]="busy()" (click)="claim()">{{ busy() ? 'Claiming…' : 'Claim my pass' }}</button>
-        <a routerLink="/w" class="underline">Not now</a>
+        <button class="btn btn-primary btn-lg" [disabled]="busy()" (click)="claim()">{{ busy() ? 'Claiming…' : 'Claim my pass' }}</button>
+        <a routerLink="/w" class="text-sm font-medium opacity-80 hover:underline">Not now</a>
       }
     </main>
   `,

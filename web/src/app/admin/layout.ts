@@ -26,11 +26,11 @@ const blankBooth = (eventId: number | null): NewBooth => ({
   imports: [FormsModule, VenueMap],
   host: { class: 'grid gap-6 lg:grid-cols-[2fr_1fr]' },
   template: `
-    <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="layout-map-title">
+    <section class="card p-4" aria-labelledby="layout-map-title">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="layout-map-title" class="font-semibold">Venue map</h2>
+        <h2 id="layout-map-title" class="font-bold">Venue map</h2>
         <label class="text-sm">Event
-          <select class="ml-1 rounded-lg border border-text/20 bg-bg px-2 py-1" [ngModel]="eventId()" (ngModelChange)="pickEvent($event)">
+          <select class="input input-sm ml-1 w-auto" [ngModel]="eventId()" (ngModelChange)="pickEvent($event)">
             @for (e of events(); track e.id) { <option [ngValue]="e.id">{{ e.name }}</option> }
           </select></label>
       </div>
@@ -43,13 +43,13 @@ const blankBooth = (eventId: number | null): NewBooth => ({
     </section>
 
     <aside class="flex flex-col gap-4">
-      <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="booth-list-title">
-        <h2 id="booth-list-title" class="mb-2 font-semibold">Booths</h2>
+      <section class="card p-4" aria-labelledby="booth-list-title">
+        <h2 id="booth-list-title" class="mb-2 font-bold">Booths</h2>
         <ul class="flex flex-col gap-1">
           @for (b of eventBooths(); track b.id) {
             <li>
-              <button class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
-                      [class]="b.id === selectedId() ? 'bg-primary text-on-primary' : 'hover:bg-bg'"
+              <button class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors"
+                      [class]="b.id === selectedId() ? 'bg-primary text-on-primary' : 'hover:bg-tint'"
                       [attr.aria-pressed]="b.id === selectedId()" (click)="selectedId.set(b.id)">
                 <span class="font-medium">{{ b.name }}</span>
                 <span class="text-xs opacity-80">{{ b.codePrefix }}-… · {{ b.mode }}</span>
@@ -60,13 +60,13 @@ const blankBooth = (eventId: number | null): NewBooth => ({
       </section>
 
       @if (selected(); as b) {
-        <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="booth-detail-title">
-          <h2 id="booth-detail-title" class="font-semibold">{{ b.name }}</h2>
+        <section class="card p-4" aria-labelledby="booth-detail-title">
+          <h2 id="booth-detail-title" class="font-bold">{{ b.name }}</h2>
           <p class="text-sm opacity-80">Pin at {{ b.x }}%, {{ b.y }}% ·
             {{ b.mode === 'live' ? b.artists + ' artist(s)' : b.roundSeats + ' seats / ' + b.roundMinutes + ' min rounds' }}</p>
           @if (b.mode === 'live') {
             <label class="mt-3 flex items-center justify-between text-sm">Artists
-              <input type="number" min="1" max="20" class="w-20 rounded-lg border border-text/20 bg-bg px-2 py-1"
+              <input type="number" min="1" max="20" class="w-20 input input-sm"
                      [ngModel]="b.artists" (change)="setArtists(b, $any($event.target).value)" /></label>
           }
           <h3 class="mt-4 text-sm font-semibold">Handlers</h3>
@@ -77,19 +77,19 @@ const blankBooth = (eventId: number | null): NewBooth => ({
           <form class="mt-2 flex gap-2" (ngSubmit)="addHandler(b)">
             <label class="sr-only" for="handler-phone">Handler phone</label>
             <input id="handler-phone" name="phone" type="tel" placeholder="Phone number" [(ngModel)]="handlerPhone"
-                   class="min-w-0 flex-1 rounded-lg border border-text/20 bg-bg px-3 py-1.5 text-sm" />
-            <button class="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-on-primary" [disabled]="busy()">Assign</button>
+                   class="min-w-0 flex-1 input input-sm" />
+            <button class="btn btn-primary btn-sm" [disabled]="busy()">Assign</button>
           </form>
         </section>
       }
 
-      <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="add-booth-title">
-        <h2 id="add-booth-title" class="font-semibold">Add a booth</h2>
+      <section class="card p-4" aria-labelledby="add-booth-title">
+        <h2 id="add-booth-title" class="font-bold">Add a booth</h2>
         <form class="mt-2 flex flex-col gap-2 text-sm" (ngSubmit)="create()">
           <input name="name" placeholder="Name, e.g. Henna corner" required [(ngModel)]="draft.name"
-                 aria-label="Booth name" class="rounded-lg border border-text/20 bg-bg px-3 py-1.5" />
+                 aria-label="Booth name" class="input input-sm" />
           <input name="serviceType" placeholder="Service, e.g. mehendi" required [(ngModel)]="draft.serviceType"
-                 aria-label="Service type" class="rounded-lg border border-text/20 bg-bg px-3 py-1.5" />
+                 aria-label="Service type" class="input input-sm" />
           <div class="flex gap-3" role="radiogroup" aria-label="Mode">
             <label><input type="radio" name="mode" value="live" [(ngModel)]="draft.mode" /> Live queue</label>
             <label><input type="radio" name="mode" value="batch" [(ngModel)]="draft.mode" /> Feast rounds</label>
@@ -97,31 +97,31 @@ const blankBooth = (eventId: number | null): NewBooth => ({
           @if (draft.mode === 'live') {
             <label class="flex items-center justify-between">Artists
               <input name="artists" type="number" min="1" max="20" [(ngModel)]="draft.artists"
-                     class="w-20 rounded-lg border border-text/20 bg-bg px-2 py-1" /></label>
+                     class="w-20 input input-sm" /></label>
           } @else {
             <label class="flex items-center justify-between">Seats per round
               <input name="roundSeats" type="number" min="1" [(ngModel)]="draft.roundSeats"
-                     class="w-20 rounded-lg border border-text/20 bg-bg px-2 py-1" /></label>
+                     class="w-20 input input-sm" /></label>
             <label class="flex items-center justify-between">Minutes per round
               <input name="roundMinutes" type="number" min="1" [(ngModel)]="draft.roundMinutes"
-                     class="w-20 rounded-lg border border-text/20 bg-bg px-2 py-1" /></label>
+                     class="w-20 input input-sm" /></label>
           }
           <fieldset class="flex flex-col gap-1">
             <legend class="font-medium">Options</legend>
             @for (o of draft.options; track $index; let i = $index) {
               <div class="flex gap-2">
                 <input [name]="'opt' + i" placeholder="Label" [(ngModel)]="o.label" [attr.aria-label]="'Option ' + (i + 1) + ' label'"
-                       class="min-w-0 flex-1 rounded-lg border border-text/20 bg-bg px-2 py-1" />
+                       class="min-w-0 flex-1 input input-sm" />
                 <input [name]="'min' + i" type="number" min="1" [(ngModel)]="o.minutes" [attr.aria-label]="'Option ' + (i + 1) + ' minutes'"
-                       class="w-16 rounded-lg border border-text/20 bg-bg px-2 py-1" />
+                       class="w-16 input input-sm" />
                 @if (draft.options.length > 1) {
                   <button type="button" (click)="draft.options.splice(i, 1)" [attr.aria-label]="'Remove option ' + (i + 1)">×</button>
                 }
               </div>
             }
-            <button type="button" class="self-start underline" (click)="draft.options.push({ label: '', minutes: 10 })">+ option</button>
+            <button type="button" class="btn btn-soft btn-sm self-start" (click)="draft.options.push({ label: '', minutes: 10 })">+ option</button>
           </fieldset>
-          <button class="mt-1 rounded-xl bg-primary px-4 py-2 font-semibold text-on-primary" [disabled]="busy()">Add booth</button>
+          <button class="mt-1 btn btn-primary" [disabled]="busy()">Add booth</button>
         </form>
       </section>
     </aside>

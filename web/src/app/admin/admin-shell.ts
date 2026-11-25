@@ -14,19 +14,20 @@ const TABS = [
   selector: 'app-admin-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 px-4 py-6">
-      <header class="flex flex-wrap items-center justify-between gap-4">
+    <div class="festoon" aria-hidden="true"></div>
+    <div class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 px-4 pb-10 pt-5 md:px-6">
+      <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p class="text-xs uppercase tracking-widest opacity-75">Varisai · Organiser</p>
-          <h1 class="font-display text-3xl text-primary">Dashboard</h1>
+          <p class="eyebrow">Varisai · Organiser</p>
+          <h1 class="font-display text-4xl leading-tight text-primary">Dashboard</h1>
         </div>
-        <a routerLink="/admin/venue" target="_blank"
-           class="rounded-xl bg-primary px-4 py-2 font-semibold text-on-primary">Open venue screen ↗</a>
+        <a routerLink="/admin/venue" target="_blank" class="btn btn-primary">Open venue screen ↗</a>
       </header>
-      <nav class="flex gap-1 overflow-x-auto border-b border-text/15" aria-label="Dashboard sections">
+      <nav class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1 shadow-sm"
+           aria-label="Dashboard sections">
         @for (t of tabs; track t.path) {
-          <a [routerLink]="t.path" routerLinkActive="border-primary text-primary" ariaCurrentWhenActive="page"
-             class="-mb-px border-b-4 border-transparent px-4 py-2 font-semibold">{{ t.label }}</a>
+          <a [routerLink]="t.path" routerLinkActive="bg-primary text-on-primary shadow-sm" ariaCurrentWhenActive="page"
+             class="shrink-0 rounded-xl px-5 py-2 text-sm font-semibold transition-colors hover:bg-tint">{{ t.label }}</a>
         }
       </nav>
       <router-outlet />

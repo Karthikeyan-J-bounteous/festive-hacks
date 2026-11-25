@@ -11,43 +11,48 @@ import { ThemeService } from './core/theme.service';
   selector: 'app-login',
   imports: [FormsModule],
   template: `
-    <main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-10">
-      <header class="text-center">
-        <p class="text-sm uppercase tracking-widest opacity-80">Varisai</p>
-        <h1 class="font-display mt-2 text-4xl text-primary">{{ wedding()?.coupleNames ?? 'Welcome' }}</h1>
+    <div class="festoon fixed inset-x-0 top-0 z-10" aria-hidden="true"></div>
+    <main class="themed mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-8 px-5 py-12">
+      <header class="flex flex-col items-center gap-3 text-center">
+        <span class="eyebrow">Varisai · வரிசை</span>
+        <h1 class="font-display text-5xl leading-tight text-primary">{{ wedding()?.coupleNames ?? 'Welcome' }}</h1>
+        <div class="ornament w-40" aria-hidden="true"><span></span></div>
         @if (wedding()?.liveEvent; as ev) {
-          <p class="mt-1 opacity-80">{{ ev.name }} is on now</p>
+          <p class="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-sm font-medium shadow-sm">
+            <span class="h-2 w-2 animate-pulse rounded-full bg-wait-green" aria-hidden="true"></span>
+            {{ ev.name }} is on now
+          </p>
+        } @else {
+          <p class="text-sm opacity-75">Skip the line at every booth.</p>
         }
       </header>
 
-      <form class="flex flex-col gap-4 rounded-2xl bg-surface p-5 shadow-sm" (ngSubmit)="submit()">
+      <form class="card flex flex-col gap-4 p-6" (ngSubmit)="submit()">
         @if (step() === 'phone') {
-          <label class="flex flex-col gap-1">
-            <span class="text-sm font-medium">Your phone number</span>
+          <label class="flex flex-col gap-1.5">
+            <span class="label">Your phone number</span>
             <input
               name="phone" type="tel" inputmode="tel" autocomplete="tel" required
-              class="rounded-xl border border-text/20 bg-bg px-4 py-3 text-lg"
+              class="input text-lg"
               [(ngModel)]="phone" placeholder="98765 43210" />
           </label>
         } @else {
-          <p class="text-sm">Code sent to <strong>{{ phone }}</strong>.
-            <button type="button" class="underline" (click)="step.set('phone')">Change</button></p>
-          <label class="flex flex-col gap-1">
-            <span class="text-sm font-medium">6-digit code</span>
+          <p class="text-sm">Code sent to <strong>{{ phone }}</strong>
+            <button type="button" class="ml-1 font-semibold text-primary underline-offset-2 hover:underline" (click)="step.set('phone')">Change</button></p>
+          <label class="flex flex-col gap-1.5">
+            <span class="label">6-digit code</span>
             <input
               #otpInput name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required
-              class="rounded-xl border border-text/20 bg-bg px-4 py-3 text-center text-2xl tracking-[0.4em]"
+              class="input text-center font-mono text-2xl tracking-[0.5em]"
               [(ngModel)]="otp" />
           </label>
-          <p class="text-xs opacity-80">Demo: the code is always 123456.</p>
+          <p class="rounded-lg bg-tint px-3 py-2 text-xs">Demo: the code is always <strong>123456</strong>.</p>
         }
         @if (error()) {
           <p class="text-sm font-medium text-primary" role="alert">{{ error() }}</p>
         }
-        <button
-          type="submit" [disabled]="busy()"
-          class="rounded-xl bg-primary px-4 py-3 text-lg font-semibold text-on-primary disabled:opacity-60">
-          {{ step() === 'phone' ? 'Send code' : 'Continue' }}
+        <button type="submit" [disabled]="busy()" class="btn btn-primary btn-lg">
+          {{ busy() ? 'Please wait…' : step() === 'phone' ? 'Send code' : 'Continue' }}
         </button>
       </form>
     </main>

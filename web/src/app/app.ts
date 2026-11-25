@@ -9,10 +9,11 @@ import { Toast } from './core/toast';
     <router-outlet />
     @if (toast.message(); as m) {
       <div
-        class="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-xl px-4 py-3 text-center shadow-lg"
+        class="toast-in fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[70] mx-auto flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 font-medium shadow-[var(--shadow-lg)]"
         [class]="m.kind === 'error' ? 'bg-text text-bg' : 'bg-primary text-on-primary'"
         role="status" aria-live="polite">
-        {{ m.text }}
+        <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/20 text-sm" aria-hidden="true">{{ m.kind === 'error' ? '!' : '✓' }}</span>
+        <span class="flex-1">{{ m.text }}</span>
       </div>
     }
   `,

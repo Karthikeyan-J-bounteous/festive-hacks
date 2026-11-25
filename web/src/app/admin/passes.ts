@@ -32,22 +32,22 @@ const sideName = (s: Side) => (s === 'bride' ? "Bride's side" : "Groom's side");
   imports: [FormsModule],
   host: { class: 'flex flex-col gap-6' },
   template: `
-    <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="quota-title">
-      <h2 id="quota-title" class="mb-3 font-semibold">Quotas <span class="text-sm font-normal opacity-75">· used / max per event</span></h2>
+    <section class="card p-4" aria-labelledby="quota-title">
+      <h2 id="quota-title" class="mb-3 font-bold">Quotas <span class="text-sm font-normal opacity-75">· used / max per event</span></h2>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
-          <thead><tr class="border-b border-text/15">
-            <th scope="col" class="py-2">Event</th>
-            @for (s of sides; track s) { <th scope="col" class="py-2">{{ sideName(s) }}</th> }
+          <thead><tr class="border-b border-line">
+            <th scope="col" class="eyebrow py-2.5">Event</th>
+            @for (s of sides; track s) { <th scope="col" class="eyebrow py-2.5">{{ sideName(s) }}</th> }
           </tr></thead>
           <tbody>
             @for (q of quotas(); track q.eventId) {
-              <tr class="border-b border-text/10">
+              <tr class="border-b border-line">
                 <th scope="row" class="py-2 font-medium">{{ q.name }}</th>
                 @for (s of sides; track s) {
                   <td class="py-2">
                     <span class="tabular-nums">{{ q[s].used }} /</span>
-                    <input type="number" min="0" class="ml-1 w-20 rounded-lg border border-text/20 bg-bg px-2 py-1"
+                    <input type="number" min="0" class="ml-1 w-20 input input-sm"
                            [attr.aria-label]="q.name + ' ' + sideName(s) + ' maximum'"
                            [value]="q[s].max" (change)="setQuota(q, s, $any($event.target).value)" />
                   </td>
@@ -60,12 +60,12 @@ const sideName = (s: Side) => (s === 'bride' ? "Bride's side" : "Groom's side");
     </section>
 
     <div class="grid gap-6 lg:grid-cols-2">
-      <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="gen-title">
-        <h2 id="gen-title" class="mb-3 font-semibold">Generate a family pass</h2>
+      <section class="card p-4" aria-labelledby="gen-title">
+        <h2 id="gen-title" class="mb-3 font-bold">Generate a family pass</h2>
         <form class="flex flex-col gap-3 text-sm" (ngSubmit)="generate()">
           <label class="flex flex-col gap-1">Who is it for?
             <input name="label" required maxlength="120" placeholder="e.g. Lakshmi Aunty (Chennai)" [(ngModel)]="label"
-                   class="rounded-lg border border-text/20 bg-bg px-3 py-2" /></label>
+                   class="input" /></label>
           <div class="flex gap-4" role="radiogroup" aria-label="Side">
             @for (s of sides; track s) {
               <label><input type="radio" name="side" [value]="s" [(ngModel)]="side" /> {{ sideName(s) }}</label>
@@ -82,38 +82,38 @@ const sideName = (s: Side) => (s === 'bride' ? "Bride's side" : "Groom's side");
               }
             </div>
           </fieldset>
-          <button class="self-start rounded-xl bg-primary px-4 py-2 font-semibold text-on-primary"
+          <button class="btn btn-primary self-start"
                   [disabled]="busy() || !label.trim() || picked().size === 0">Generate pass</button>
         </form>
       </section>
 
       @if (card(); as c) {
-        <section class="flex flex-col items-center gap-3 rounded-2xl border-4 border-gold bg-surface p-5 text-center shadow-sm"
+        <section class="flex flex-col items-center gap-3 rounded-[1.75rem] border-4 border-gold bg-surface p-6 text-center shadow-[var(--shadow-lg)]"
                  aria-labelledby="card-title">
-          <p class="text-xs font-bold uppercase tracking-widest text-gold">★ Family pass</p>
+          <span class="gold-badge px-4 py-1 tracking-widest">★ FAMILY PASS</span>
           <h2 id="card-title" class="font-display text-2xl">{{ c.pass.label }}</h2>
           <p class="text-sm">{{ sideName(c.pass.side) }} · {{ eventNames(c.pass.eventIds) }}</p>
           <img [src]="c.qr" alt="QR code for this family pass" class="h-56 w-56" />
           <p class="break-all text-xs opacity-75">{{ c.link }}</p>
           <div class="flex gap-2">
-            <button class="rounded-xl bg-primary px-4 py-2 font-semibold text-on-primary" (click)="share(c)">Share</button>
-            <button class="rounded-xl border-2 border-primary px-4 py-2 font-semibold text-primary" (click)="download(c)">Download PNG</button>
+            <button class="btn btn-primary" (click)="share(c)">Share</button>
+            <button class="btn btn-outline" (click)="download(c)">Download PNG</button>
           </div>
         </section>
       }
     </div>
 
-    <section class="rounded-2xl bg-surface p-4 shadow-sm" aria-labelledby="list-title">
-      <h2 id="list-title" class="mb-3 font-semibold">Passes ({{ passes().length }})</h2>
+    <section class="card p-4" aria-labelledby="list-title">
+      <h2 id="list-title" class="mb-3 font-bold">Passes ({{ passes().length }})</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
-          <thead><tr class="border-b border-text/15">
-            <th scope="col" class="py-2">For</th><th scope="col">Side</th><th scope="col">Events</th>
-            <th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th>
+          <thead><tr class="border-b border-line">
+            <th scope="col" class="eyebrow py-2.5">For</th><th scope="col" class="eyebrow">Side</th><th scope="col" class="eyebrow">Events</th>
+            <th scope="col" class="eyebrow">Status</th><th scope="col" class="eyebrow"><span class="sr-only">Actions</span></th>
           </tr></thead>
           <tbody>
             @for (p of passes(); track p.id) {
-              <tr class="border-b border-text/10" [class.opacity-60]="p.revokedAt">
+              <tr class="border-b border-line" [class.opacity-60]="p.revokedAt">
                 <td class="py-2 font-medium">{{ p.label }}</td>
                 <td>{{ p.side }}</td>
                 <td>{{ eventNames(p.eventIds) }}</td>
@@ -124,8 +124,8 @@ const sideName = (s: Side) => (s === 'bride' ? "Bride's side" : "Groom's side");
                 </td>
                 <td class="py-2 text-right">
                   @if (!p.revokedAt) {
-                    <button class="mr-3 underline" (click)="show(p)">QR</button>
-                    <button class="font-semibold text-primary underline" [disabled]="busy()" (click)="revoke(p)">Revoke</button>
+                    <button class="btn btn-soft btn-sm mr-2" (click)="show(p)">QR</button>
+                    <button class="btn btn-outline btn-sm" [disabled]="busy()" (click)="revoke(p)">Revoke</button>
                   }
                 </td>
               </tr>

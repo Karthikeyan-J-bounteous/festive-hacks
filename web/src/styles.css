@@ -4,7 +4,17 @@
  * Theme tokens. ThemeService.apply() overwrites these on <body> per live event;
  * every `bg-primary`, `text-accent`, ... re-skins automatically.
  * Defaults = Mehendi (SPEC-LITE §3).
+ *
+ * Registering the colours with @property makes them animatable, so the 400 ms
+ * cross-fade (§3) also covers gradients, SVG fills and colour-mixed tints.
  */
+@property --primary { syntax: '<color>'; inherits: true; initial-value: #3e7c3a; }
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #b5532a; }
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #f3f7ec; }
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --text { syntax: '<color>'; inherits: true; initial-value: #1c2a1b; }
+@property --on-primary { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+
 :root {
   --primary: #3e7c3a;
   --accent: #b5532a;
@@ -15,6 +25,15 @@
   --display-font: 'Yatra One', serif;
 }
 
+/* Derived tokens live on <body> so they follow the theme vars ThemeService writes there. */
+body {
+  --line: color-mix(in oklab, var(--text) 11%, transparent);
+  --line-strong: color-mix(in oklab, var(--text) 22%, transparent);
+  --tint: color-mix(in oklab, var(--primary) 8%, var(--surface));
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 14px -6px rgb(0 0 0 / 0.12);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.06), 0 22px 48px -18px rgb(0 0 0 / 0.3);
+}
+
 @theme inline {
   --color-primary: var(--primary);
   --color-accent: var(--accent);
@@ -22,6 +41,8 @@
   --color-surface: var(--surface);
   --color-text: var(--text);
   --color-on-primary: var(--on-primary);
+  --color-line: var(--line);
+  --color-tint: var(--tint);
   --font-display: var(--display-font);
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --color-wait-green: #1f7a3a;
@@ -35,10 +56,26 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
+  min-height: 100dvh;
   background-color: var(--bg);
+  /* Soft festive glow in the corners, tinted by the live theme. */
+  background-image:
+    radial-gradient(48rem 30rem at 110% -8%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 65%),
+    radial-gradient(40rem 26rem at -12% 4%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 65%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
-  transition: background-color 0.4s, color 0.4s;
+  -webkit-font-smoothing: antialiased;
+  accent-color: var(--primary);
+}
+/* Fade only after the first theme is applied, so page loads don't flash the default. */
+body.theme-ready {
+  transition: --primary 0.4s, --accent 0.4s, --bg 0.4s, --surface 0.4s, --text 0.4s, --on-primary 0.4s;
+}
+body.theme-dark {
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px -8px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 24px 50px -18px rgb(0 0 0 / 0.8);
+  color-scheme: dark;
 }
 
 /* Anything themed fades with the body when the live event changes (§3 cross-fade). */
@@ -49,6 +86,154 @@ body {
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+::selection { background: color-mix(in oklab, var(--primary) 30%, transparent); }
+
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .eyebrow {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--text) 72%, transparent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.9rem;
+    padding: 0.7rem 1.15rem;
+    font-weight: 700;
+    line-height: 1.2;
+    transition: transform 0.12s ease, box-shadow 0.2s, background-color 0.2s, border-color 0.2s, opacity 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+  .btn:disabled { opacity: 0.5; }
+  .btn-primary {
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 8px 18px -8px color-mix(in oklab, var(--primary) 80%, transparent);
+  }
+  .btn-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--primary) 88%, var(--text)); }
+  .btn-outline { border: 2px solid var(--primary); color: var(--primary); background: transparent; }
+  .btn-outline:hover:not(:disabled) { background: color-mix(in oklab, var(--primary) 8%, transparent); }
+  .btn-soft { background: color-mix(in oklab, var(--text) 6%, transparent); color: var(--text); }
+  .btn-soft:hover:not(:disabled) { background: color-mix(in oklab, var(--text) 11%, transparent); }
+  .btn-lg { padding: 1rem 1.4rem; font-size: 1.125rem; border-radius: 1.1rem; }
+  .btn-sm { padding: 0.45rem 0.8rem; font-size: 0.875rem; border-radius: 0.7rem; }
+
+  .chip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--line-strong);
+    background: var(--surface);
+    padding: 0.45rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.12s;
+  }
+  .chip:hover { border-color: color-mix(in oklab, var(--primary) 60%, transparent); }
+  .chip:active { transform: scale(0.97); }
+  .chip[aria-pressed='true'] {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: 0 6px 14px -8px color-mix(in oklab, var(--primary) 90%, transparent);
+  }
+
+  .input {
+    width: 100%;
+    border-radius: 0.85rem;
+    border: 1.5px solid var(--line-strong);
+    background: color-mix(in oklab, var(--bg) 60%, var(--surface));
+    padding: 0.7rem 0.95rem;
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+  }
+  .input::placeholder { color: color-mix(in oklab, var(--text) 50%, transparent); }
+  .input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--surface);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent);
+  }
+  .input-sm { padding: 0.4rem 0.65rem; border-radius: 0.65rem; font-size: 0.875rem; }
+
+  .label { font-size: 0.875rem; font-weight: 600; }
+
+  /* Hanging scallops, a nod to a doorway toran. */
+  .festoon {
+    height: 12px;
+    background:
+      radial-gradient(circle at 50% 0, var(--accent) 5px, transparent 5.5px) 0 0 / 22px 12px repeat-x,
+      radial-gradient(circle at 50% 0, var(--primary) 5px, transparent 5.5px) 11px 0 / 22px 12px repeat-x;
+    opacity: 0.9;
+  }
+
+  /* Line · diamond · line divider. */
+  .ornament {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--accent);
+  }
+  .ornament::before, .ornament::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(to var(--dir, right), transparent, currentColor);
+  }
+  .ornament::after { --dir: left; }
+  .ornament > span { width: 8px; height: 8px; transform: rotate(45deg); background: currentColor; }
+
+  /* Ticket stub: two side notches at the perforation line. */
+  .stub {
+    --notch-y: 5.25rem;
+    -webkit-mask:
+      radial-gradient(circle 11px at left var(--notch-y), #0000 98%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 11px at right var(--notch-y), #0000 98%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle 11px at left var(--notch-y), #0000 98%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle 11px at right var(--notch-y), #0000 98%, #000) right / 51% 100% no-repeat;
+  }
+
+  .wait-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gold-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #a67c0d, #8b6508 55%, #6f5006);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 4px 10px -4px rgb(139 101 8 / 0.7);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -72,4 +257,18 @@ button:disabled { cursor: not-allowed; }
 
 /* Bottom sheet */
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
-.sheet-up { animation: sheet-up 0.22s ease-out both; }
+.sheet-up { animation: sheet-up 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fade-in 0.2s ease-out both; }
+
+/* Toast */
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+.toast-in { animation: toast-in 0.22s ease-out both; }
+
+/* Takeover: soft breathing halo behind the code */
+@keyframes halo { 0%, 100% { transform: scale(1); opacity: 0.35; } 50% { transform: scale(1.12); opacity: 0.15; } }
+.halo { animation: halo 2.4s ease-in-out infinite; }
+
+/* Map pin pulse for the selected booth */
+@keyframes pin-pulse { from { r: 40; opacity: 0.55; } to { r: 64; opacity: 0; } }
+.pin-pulse { animation: pin-pulse 1.4s ease-out infinite; }

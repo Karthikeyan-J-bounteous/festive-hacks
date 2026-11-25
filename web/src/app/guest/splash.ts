@@ -24,9 +24,11 @@ const FALLING: Record<SplashKind, string> = { leaves: '🍃', petals: '🌸', co
               [style.left.%]="(i * 37) % 100" [style.animation-delay.ms]="(i * 130) % 900">{{ falling[kind()] }}</span>
       }
     }
-    <p class="splash-in text-lg opacity-80">{{ couple() }}</p>
-    <h1 class="splash-in font-display text-5xl text-primary" style="animation-delay: 350ms">{{ eventName() }}</h1>
-    <p class="mt-8 text-xs opacity-70">Tap to continue</p>
+    <p class="splash-in eyebrow">You're invited</p>
+    <p class="splash-in font-display text-3xl" style="animation-delay: 120ms">{{ couple() }}</p>
+    <div class="splash-in ornament w-48" style="animation-delay: 240ms" aria-hidden="true"><span></span></div>
+    <h1 class="splash-in font-display text-6xl leading-tight text-primary" style="animation-delay: 350ms">{{ eventName() }}</h1>
+    <p class="absolute bottom-10 text-xs opacity-70">Tap to continue</p>
   `,
 })
 export class Splash implements OnInit {
