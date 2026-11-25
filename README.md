@@ -4,6 +4,8 @@ At an Indian wedding the queues are everywhere: the mehendi artist, the nail-art
 
 Built for Festive Hacks with three sponsor tools: **Sarvam AI** (spoken, translated alerts), **Flagsmith** (live flags + A/B test) and **NudgeBee** (ops workflow). See [Built with](#built-with).
 
+**Live demo:** https://varisai-pv6h.onrender.com (free tier: the first visit after a quiet spell can take ~30 s to wake up; data resets to the demo seed on every restart).
+
 ## Demo logins
 
 Any phone number works; the OTP is always **`123456`** (no SMS in the demo). Seeded users:
