@@ -2,7 +2,7 @@
 
 At an Indian wedding the queues are everywhere: the mehendi artist, the nail-art table, the chaat counter, the blessing line on stage and the dining hall that seats in rounds. Guests spend the evening standing in lines instead of with their family, elders wait on their feet, and the planner has no idea which booth is drowning until someone complains. **Varisai** (வரிசை, "queue") turns every line into a virtual queue. A guest scans one QR at the venue, joins up to three queues at once from their phone, keeps mingling, and gets a full-screen "your turn" alert (spoken in their own language) when it's time to walk over. Booth handlers call the next guest from a phone console; the planner watches every booth live on a venue map.
 
-**Live:** TODO: deployed URL
+Built for Festive Hacks with three sponsor tools: **Sarvam AI** (spoken, translated alerts), **Flagsmith** (live flags + A/B test) and **NudgeBee** (ops workflow). See [Built with](#built-with).
 
 ## Demo logins
 
@@ -94,21 +94,11 @@ How to read it: guests stand about **a fifth as long**, and still finish everyth
 
 The simulation also changed the product. In its first version the "almost" nudge went to positions 1–2. Those guests were often seated at the feast, so the guest actually called hadn't been told to walk over and the chaat servers sat idle: guests finished 25–30% *later* than with physical lines. Nudging the next free guests instead fixed it.
 
-## Screens
-
-TODO: add screenshots to `docs/screenshots/` and link them here.
-
-| Guest, Mehendi theme | Guest, Sangeet theme | Booth handler | Admin overview |
-|---|---|---|---|
-| TODO | TODO | TODO | TODO |
-
 ## Built with
 
-**Sarvam AI.** When a guest is called, the line "Lakshmi, it's your turn at Mehendi table. Token M-014." is translated with **Mayura** into the guest's chosen language (Tamil, Hindi, Kannada, Telugu, Malayalam or English) and spoken with **Bulbul** (`bulbul:v4-flash`). The full-screen takeover on their phone plays it. The "almost" and feast-round notes are translated too. The audio is generated after the database commit, cached by (language, text), and pre-warmed at the "almost" nudge, so a slow API never delays a ticket.
-TODO: screenshot
+**Sarvam AI.** When a guest is called, the line "Lakshmi, it's your turn at Mehendi table. Token M-014." is translated with **Mayura** into the guest's chosen language (Tamil, Hindi, Kannada, Telugu, Malayalam or English) and spoken with **Bulbul** (`bulbul:v4-flash`). The full-screen takeover on their phone plays it. The "almost" and feast-round notes are translated too. The audio is generated after the database commit, cached by (language, text), and pre-warmed at the "almost" nudge, so a slow API never delays a ticket. Without `SARVAM_API_KEY` the guest just sees the visual alert.
 
-**Flagsmith.** Live kill-switches the planner can flip mid-event without a redeploy: `family_passes` (VIP lane and pass claims), `feast_rounds`, `voice_alerts` and `presence_geofence` (code-only presence when indoor GPS is bad). The server refreshes every 15 s and pushes changes to every phone over the socket. A multivariate `eta_style` flag runs an **A/B test** per guest: "~15–20 min" vs "3 people ahead". Each join and each guest cancel is logged, and the admin Overview shows the cancel rate for each wording.
-TODO: screenshot
+**Flagsmith.** Live kill-switches the planner can flip mid-event without a redeploy: `family_passes` (VIP lane and pass claims), `feast_rounds`, `voice_alerts` and `presence_geofence` (code-only presence when indoor GPS is bad). The server refreshes every 15 s and pushes changes to every phone over the socket. A multivariate `eta_style` flag runs an **A/B test** per guest: "~15–20 min" vs "3 people ahead". Each join and each guest cancel is logged, and the admin Overview shows the cancel rate for each wording. The server also enforces the switches (403 `feature_off` / `geofence_off`), not just the UI.
 
 **NudgeBee.** An ops autopilot for the planner, with a human in the loop. The "Varisai queue autopilot" workflow runs every 2 minutes: an **HTTP** step calls `GET /api/ops/overview`. If any booth's wait is over 25 min, an **Approval** step asks the planner, for example "Mehendi table: 83 min, 4 waiting. Open one more artist?". On approve, a second **HTTP** step calls `POST /api/ops/booths/:id/artists`, and every waiting guest's ETA drops live. In testing, one approval took the Mehendi table from 2 to 3 artists and its wait from 83 to 55 min. Varisai can also push a booth to a NudgeBee webhook trigger the moment it first passes 25 min (`NUDGEBEE_WEBHOOK_URL`, deduped per booth per 15 min).
 Endpoints: `GET /api/ops/overview` and `POST /api/ops/booths/:id/artists` (`Authorization: Bearer $OPS_TOKEN`, 401 when unset).
