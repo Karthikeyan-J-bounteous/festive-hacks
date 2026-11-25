@@ -37,7 +37,7 @@ Open http://localhost:4200. The database (`varisai.db`) seeds itself when empty.
 |---|---|
 | `npm run dev` | Server (tsx watch) and web (ng serve) together |
 | `npm test` | Server tests (Vitest: engine, routes, ticker, socket, sponsors) |
-| `npm run seed` | Reset the database to the demo data |
+| `npm run seed -w server -- --reset` | Wipe and re-seed the demo data (stop `npm run dev` first) |
 | `npm run simulate` | Physical lines vs Varisai simulation (table below) |
 | `npm run build && npm start` | Production: Express serves the Angular build on one port |
 
