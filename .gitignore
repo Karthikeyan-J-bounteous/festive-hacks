@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.angular/
+*.db
+*.db-shm
+*.db-wal
+.env
+.DS_Store
+coverage/
+*.log
+CLAUDE.md

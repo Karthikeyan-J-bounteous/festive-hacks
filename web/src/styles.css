@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/*
+ * Theme tokens. ThemeService.apply() overwrites these on <body> per live event;
+ * every `bg-primary`, `text-accent`, ... re-skins automatically.
+ * Defaults = Mehendi (SPEC-LITE §3).
+ */
+:root {
+  --primary: #3e7c3a;
+  --accent: #b5532a;
+  --bg: #f3f7ec;
+  --surface: #ffffff;
+  --text: #1c2a1b;
+  --on-primary: #ffffff;
+  --display-font: 'Yatra One', serif;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-on-primary: var(--on-primary);
+  --font-display: var(--display-font);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.4s, color 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}
